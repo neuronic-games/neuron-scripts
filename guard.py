@@ -44,7 +44,7 @@ def initApp():
     cwd = os.getcwd()
     image_name = audit_setting.logoBrand
     path = os.path.join(cwd, image_name)
-    ctypes.windll.user32.SystemParametersInfoA(20, 0, path, 3)
+    ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 3)
 ####################################################################################################
 # Getting the list of all running process from the task manager
 # Filter the app passed as param 'name'
@@ -146,7 +146,7 @@ try:
                         # Reset the background solid color to previous
                         ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
                         # Revet back to default set wallpaper
-                        ctypes.windll.user32.SystemParametersInfoA(20, 0, getWallpaper(), 3)
+                        ctypes.windll.user32.SystemParametersInfoW(20, 0, getWallpaper(), 3)
                         # Show the bottom taskbar
                         windll.user32.ShowWindow(initApp.taskBarStatus, 9)
                         # Close CMD Console
@@ -178,7 +178,7 @@ try:
                     # Reset the background solid color to previous
                     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
                     # Revet back to default set wallpaper
-                    ctypes.windll.user32.SystemParametersInfoA(20, 0, getWallpaper(), 3)
+                    ctypes.windll.user32.SystemParametersInfoW(20, 0, getWallpaper(), 3)
                     # Show the bottom taskbar
                     windll.user32.ShowWindow(initApp.taskBarStatus, 9)
                     # Close CMD Console
@@ -213,7 +213,7 @@ except KeyboardInterrupt:
     # Reset the background solid color to previous
     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
     # Revet back to default set wallpaper
-    ctypes.windll.user32.SystemParametersInfoA(20, 0, getWallpaper(), 3)
+    ctypes.windll.user32.SystemParametersInfoW(20, 0, getWallpaper(), 3)
     # Show the bottom taskbar
     windll.user32.ShowWindow(initApp.taskBarStatus, 9)
     # Close CMD Console
