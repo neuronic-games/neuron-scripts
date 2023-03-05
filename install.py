@@ -1,6 +1,7 @@
 import wget
 import argparse
 import archive_update
+import os
 
 parser = argparse.ArgumentParser(description='Install Neuron Guard and Neuron Apps.')
 parser.add_argument('--archive', nargs='?', help='URL for archive.txt')
@@ -9,7 +10,7 @@ args = parser.parse_args()
 
 if (args.archive):
     archive = "archive.txt"
-    wget.download(args.archive, "%USERPROFILE%/Documents/Neuronic/Apps")
+    wget.download(args.archive, os.environ['USERPROFILE'] + "/Documents/Neuronic/Apps")
     print ("\n")
     archive_update.checkUpdateStatus()
     print ("Archive installed.")
