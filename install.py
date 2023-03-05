@@ -8,8 +8,11 @@ args = parser.parse_args()
 
 if (args.archive):
     wget.download(args.archive)
+    print ("Archive installed.")
     exit
 
-// Basic install of Neuron Guard
+# Basic install of Neuron Guard
     
 wget.download("https://www.dropbox.com/s/gtr5rjb3x589lyl/credentials.json?dl=1")
+print
+print ("Neuron Guard installed.")
