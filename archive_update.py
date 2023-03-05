@@ -26,6 +26,7 @@ current_version = "0"
 checkOnce = False
 # Download Status
 downloadCompleted = False
+checkForUpdate = False
 
 #############################################################
 # Method to compare two versions.
@@ -73,7 +74,7 @@ def checkUpdateStatus():
 
     # Download Status
     downloadCompleted = False
-    if(audit_setting.checkForUpdate == True):  
+    if(audit_setting.checkForUpdate || checkForUpdate):  
         # Read the current version from version.txt
         archive_file_exists = exists(archive_info_file)
         if(archive_file_exists):
@@ -153,5 +154,5 @@ def checkUpdateStatus():
                     downloadCompleted = True
     return downloadCompleted
 
-
+checkForUpdate = True
 checkUpdateStatus()
