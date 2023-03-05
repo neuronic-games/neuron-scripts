@@ -74,7 +74,7 @@ def checkUpdateStatus():
 
     # Download Status
     downloadCompleted = False
-    if(audit_setting.checkForUpdate || checkForUpdate):  
+    if(audit_setting.checkForUpdate or checkForUpdate):  
         # Read the current version from version.txt
         archive_file_exists = exists(archive_info_file)
         if(archive_file_exists):
