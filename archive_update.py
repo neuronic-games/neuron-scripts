@@ -18,15 +18,15 @@ from os.path import exists
 import shutil
 from os import getenv, getcwd
 
-#############################################################
-""" extract_dir = "."
+extract_dir = "."
 archive_info_file = "archive.txt"
 version_cur_file = "version.txt"
 version_new_file = "version.new.txt"
 current_version = "0"
 checkOnce = False
 # Download Status
-downloadCompleted = False """
+downloadCompleted = False
+
 #############################################################
 # Method to compare two versions.
 # Return 1 if v2 is smaller,
