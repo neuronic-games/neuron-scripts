@@ -76,8 +76,8 @@ def checkUpdateStatus():
     if(audit_setting.checkForUpdate == True):  
         # Read the current version from version.txt
         if not os.path.exists(archive_info_file):
-        #archive_file_exists = exists(archive_info_file)
-        #if(archive_file_exists):
+        archive_file_exists = exists(archive_info_file)
+        if(archive_file_exists):
             if(checkOnce == False):
                 checkOnce = True
                 print (archive_info_file, "does not exist in this folder.")
@@ -94,8 +94,8 @@ def checkUpdateStatus():
                 f.close()
 
                 # Cleanup of update.txt if necessary
-                #if os.path.exists(archive_info_file):
-                    #os.remove(archive_info_file)
+                if os.path.exists(archive_info_file):
+                    os.remove(archive_info_file)
 
                 print ("Checking latest version of", archive)
                 archive_info_file_new = wget.download(version_url)
@@ -120,7 +120,7 @@ def checkUpdateStatus():
                 print ("Current:", current_version)
 
                 # remove downloaded archive_info_file 
-                #os.remove(archive_info_file)
+                os.remove(archive_info_file)
 
                 # Download newer archive
                 if versionCompare(archive_version, current_version) == 1:
