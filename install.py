@@ -8,4 +8,5 @@ parser.add_argument('--archive', nargs='?', help='URL for archive.txt')
 
 args = parser.parse_args()
 
-puts args
+if (args.archive.exists()):
+    wget.download(args.archive)
