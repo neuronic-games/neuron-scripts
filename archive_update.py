@@ -154,4 +154,4 @@ def checkUpdateStatus():
     return downloadCompleted
 
 
-    
+checkUpdateStatus()
