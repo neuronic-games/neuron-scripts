@@ -108,7 +108,7 @@ try:
                     chromeCMD = r'start chrome {}'.format(appURL) + " --start-fullscreen --kiosk --disable-pinch --overscroll-history-navigation=0"
                     subprocess.Popen(chromeCMD, shell = True)
                 else:
-                    subprocess.Popen((appDefaultPath + appName + '.exe'), startupinfo=info)
+                    subprocess.Popen((appDefaultPath + appName + ' ' + audit_setting.appPath), startupinfo=info)
                 logging.info("{}: App Restarted".format(datetime.now()))
             elif notResponding in res:
                 print('%s - Not responding' % (appName + '.exe'))
