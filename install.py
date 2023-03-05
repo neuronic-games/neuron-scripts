@@ -9,7 +9,7 @@ args = parser.parse_args()
 
 if (args.archive):
     archive = "archive.txt"
-    wget.download(args.archive, "%USERPROFILE%\Documents\Neuronic\Apps")
+    wget.download(args.archive, "%USERPROFILE%/Documents/Neuronic/Apps")
     print ("\n")
     archive_update.checkUpdateStatus()
     print ("Archive installed.")
