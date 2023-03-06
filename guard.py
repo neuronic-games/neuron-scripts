@@ -63,10 +63,10 @@ target = 'background\\'
 ####################################################################################################
 ### Get Active Wallpapaer
 def getWallpaper():
-    currentWallpaper = os.listdir(target)
-    cwd = os.getcwd()
-    imgName = target + currentWallpaper[0]
-    path = os.path.join(cwd, imgName)
+    # currentWallpaper = os.listdir(target)
+    # cwd = os.getcwd()
+    # imgName = target + currentWallpaper[0]
+    path = os.path.join(audit_setting.neuronAppPath, "neuron-scripts", "logo", "neuronic.png")
     return path
 ####################################################################################################
 try:
