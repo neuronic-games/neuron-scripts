@@ -13,7 +13,7 @@ exhibitName = "MATCH-MOVES-1" # Change accordingly
 ##############################################################################################
 # This is the root folder of where the Unity EXE will be installed
 neuronAppPath = r'C:/Users/admin/Documents/Neuronic/Apps'
-neuronAppName = r'Neuron App'  # This is the folder name of the app : Change accordingly
+neuronAppName = r'My Exhibit App'  # This is the folder name of the app : Change accordingly
 ##############################################################################################
 # App EXE [EXE]
 # Use exe name for the respective apps name in non chrome based apps [eg : "hpcm-tv-edit.exe"]
@@ -26,7 +26,7 @@ appEXEName = "chrome.exe" # Change accordingly
 appEXEPath = r'C:/Program Files/Google/Chrome/Application' 
 ##############################################################################################
 # Fill the URL in case of chrome apps only. Leave blank in case of EXE apps only
-appPath = "https://www.neuronicgames.com" # App Path : Change accordingly
+appParams = "https://www.neuronicgames.com" # Change accordingly
 ##############################################################################################
 # Crash Log path
 crashPath = r'crash.log'
