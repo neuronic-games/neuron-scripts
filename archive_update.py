@@ -65,9 +65,9 @@ def versionCompare(v1, v2):
 #############################################################
 
 def checkUpdateStatus():
-    extract_dir = os.path.join(audit_setting.neuronAppPath, audit_setting.neuronAppName)
-    archive_info_file = os.path.join(audit_setting.neuronAppPath, audit_setting.neuronAppName, "archive.txt")
-    version_cur_file = os.path.join(audit_setting.neuronAppPath, audit_setting.neuronAppName, "version.txt")
+    extract_dir = os.path.join(audit_setting.appPath, audit_setting.appName)
+    archive_info_file = os.path.join(audit_setting.appPath, audit_setting.appName, "archive.txt")
+    version_cur_file = os.path.join(audit_setting.appPath, audit_setting.appName, "version.txt")
     current_version = "0.0"
     newPath = os.getcwd()
 
