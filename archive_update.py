@@ -95,6 +95,7 @@ def checkUpdateStatus():
         # Download the latest archive.txt
         print ("Checking latest version of", archive)
         archive_info_file_new = wget.download(version_url, extract_dir)
+        print ("\n")
 
         # Read URL of files from archive.txt
 
@@ -119,7 +120,7 @@ def checkUpdateStatus():
         if versionCompare(archive_version, current_version) == 1:
             print ("Downloading version", archive_version, "from", archive_url)
             archive_filename = wget.download(archive_url, extract_dir)
-            #print
+            print ("\n")
 
             print ("Extracting", archive_filename)
             zf = ZipFile(archive_filename, 'r')
