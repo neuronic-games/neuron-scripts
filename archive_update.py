@@ -129,6 +129,7 @@ def checkUpdateStatus():
 
             # Remove the archive
             os.remove(archive_filename)
+            print ("Cleaning up " + archive_filename)
 
             # move file
             # path = os.path.join(newPath, archive_info_file_new)
@@ -138,6 +139,7 @@ def checkUpdateStatus():
             f = open(version_cur_file, 'w')
             f.write(archive_version)
             f.close()
+            print ("Updating latest version record " + version_cur_file)
             downloadCompleted = True
             
         else:
