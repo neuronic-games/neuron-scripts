@@ -120,7 +120,7 @@ try:
                 ####################################################################
                 isChromeApp = appDefaultPath.find('Chrome')
                 if(isChromeApp != -1):
-                    appURL = audit_setting.appPath
+                    appURL = audit_setting.appParams
                     #######################################################################
                     now = datetime.now()
                     # convert to string
