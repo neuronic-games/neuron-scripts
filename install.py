@@ -19,8 +19,9 @@ if (args.archive):
         print ("Downloading " + archive)
         wget.download(args.archive, folder)
         print ("\n")
-        archive_update.checkUpdateStatus(True)
-        print ("Archive installed.")
+        print ("Archive info downloaded.")
+    archive_update.checkUpdateStatus(True)
+    print ("Archive installed.")
     exit()
 
 # Basic install of Neuron Guard
