@@ -16,7 +16,7 @@ DESKTOP_COLOR = RGB(0, 0, 0)
 ####################################################################################################
 ### Get Active Wallpapaer
 def getWallpaper():
-    path = os.path.join(cwd, NEURONIC_LOGO)
+    path = os.path.join(audit_setting.appPath, 'neuron-scripts', 'logo', NEURONIC_LOGO)
     return path
 
 if __name__ == '__main__':
