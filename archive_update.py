@@ -122,6 +122,12 @@ def checkUpdateStatus():
             archive_filename = wget.download(archive_url, extract_dir)
             print ("\n")
 
+            print ("Extracting", archive_filename)
+            zf = ZipFile(archive_filename, 'r')
+            zf.extractall(extract_dir)
+            zf.close()
+            print ("Extracted in ", extract_dir)
+
             # Remove the archive
             os.remove(archive_filename)
             print ("Cleaning up " + archive_filename)
@@ -135,12 +141,7 @@ def checkUpdateStatus():
             f.write(archive_version)
             f.close()
             print ("Updating latest version record " + version_cur_file)
-
-            print ("Extracting", archive_filename)
-            zf = ZipFile(archive_filename, 'r')
-            zf.extractall(extract_dir)
-            zf.close()
-
+            
             downloadCompleted = True
             
         else:
