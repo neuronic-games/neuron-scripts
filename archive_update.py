@@ -73,14 +73,12 @@ def checkUpdateStatus(checkForUpdate):
 
     # Download Status
     downloadCompleted = False
-    if(audit_setting.checkForUpdate or checkForUpdate):  
+    if (audit_setting.checkForUpdate or checkForUpdate):  
         # Read the current version from version.txt
         archive_file_exists = exists(archive_info_file)
-        if(archive_file_exists):
-            if(checkOnce == False):
-                checkOnce = True
-                print (archive_info_file, "does not exist in this folder.")
-                downloadCompleted = True
+        if (not archive_file_exists):
+            print (archive_info_file, "does not exist in this folder.")
+            downloadCompleted = False
         else:
             print ("Reading " + archive_info_file)
             # Read version.txt
