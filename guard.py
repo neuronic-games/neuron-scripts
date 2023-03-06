@@ -63,7 +63,7 @@ logging.basicConfig(filename=os.path.join(folder, crash_file), filemode='w', lev
 ####################################################################################################
 ### Get Active Wallpapaer
 def getWallpaper():
-    path = os.path.join(audit_setting.neuronAppPath, "neuron-scripts", "logo", "neuronic.png")
+    path = os.path.join(audit_setting.appPath, "neuron-scripts", "logo", "neuronic.png")
     return path
 ####################################################################################################
 try:
