@@ -45,10 +45,9 @@ def initApp():
     # Set the background solid color
     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
     # Hide the active dektop background image
-    cwd = os.getcwd()
-    image_name = audit_setting.logoBrand
-    path = os.path.join(cwd, image_name)
+    path = os.path.join(audit_setting.appPath, 'neuron-scripts', 'logo', audit_setting.logoName)
     ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 3)
+    
 ####################################################################################################
 # Getting the list of all running process from the task manager
 # Filter the app passed as param 'name'
