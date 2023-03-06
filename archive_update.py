@@ -16,6 +16,7 @@ from zipfile import ZipFile
 import audit_setting
 from os.path import exists
 import shutil
+import argparse
 from os import getenv, getcwd
 
 extract_dir = "."
@@ -153,4 +154,10 @@ def checkUpdateStatus():
     return downloadCompleted
 
 if __name__ == "__main__":
-    checkUpdateStatus()
+    parser = argparse.ArgumentParser(description='Check for latest archive.')
+    parser.add_argument('--force', help='Force an udpate and ignore setting in audit_setting.py')
+
+    args = parser.parse_args()
+
+    if args.force :
+        checkUpdateStatus()
