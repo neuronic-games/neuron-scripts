@@ -16,7 +16,7 @@ appEXEName = "chrome.exe" # Change accordingly
 # Change the app path here
 # For non chrome based apps [eg : r'C:/Program Files (x86)/hpcm-tv-edit/'] # Path of apps location :::: Change accordingly
 # For chrome based apps [eg : r'C:/Program Files/Google/Chrome/Application/'] # Path of Chrome.exe
-appEXEPath = r'C:/Program Files/Google/Chrome/Application/' 
+appEXEPath = r'C:/Program Files/Google/Chrome/Application' 
 ##############################################################################################
 # Fill the URL in case of chrome apps only. Leave blank in case of EXE apps only
 appPath = "https://www.neuronicgames.com" # App Path : Change accordingly
@@ -38,4 +38,4 @@ logoBrand = "logo/neuronic.png"
 checkForUpdate = False
 ##############################################################################################
 
-archivePath = r'C:/Users/admin/Documents/Neuronic/Apps/Skeletal Pop/'
+archivePath = r'C:/Users/admin/Documents/Neuronic/Apps/Skeletal Pop'

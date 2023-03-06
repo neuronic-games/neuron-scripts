@@ -17,9 +17,9 @@ if (args.archive):
     archive = folder + "/archive.txt"
     if not os.path.exists(archive):
         print ("Downloading " + archive)
-        wget.download(args.archive, )
+        wget.download(args.archive)
         print ("\n")
-        archive_update.checkUpdateStatus()
+        archive_update.checkUpdateStatus(True)
         print ("Archive installed.")
     exit()
 
