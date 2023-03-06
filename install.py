@@ -1,5 +1,6 @@
 import wget
 import argparse
+import audit_setting
 import archive_update
 import os
 
@@ -9,8 +10,8 @@ parser.add_argument('--archive', nargs='?', help='URL for archive.txt')
 args = parser.parse_args()
 
 if (args.archive):
-    folder = os.environ['USERPROFILE'] + "/Documents/Neuronic/Apps/"
-    archive = folder + "archive.txt"
+    folder = audit_setting.archivePath
+    archive = folder + "/archive.txt"
     if not os.path.exists(archive):
         wget.download(args.archive, )
         print ("\n")
