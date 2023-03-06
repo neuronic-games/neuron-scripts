@@ -27,7 +27,10 @@ if (args.archive):
     exit()
 
 # Basic install of Neuron Guard
-    
-wget.download("https://www.dropbox.com/s/gtr5rjb3x589lyl/credentials.json?dl=1")
-print ("\n")
-print ("Neuron Guard installed.")
+
+if os.path.exists("credentials.json") :
+    print ("credentials.json already exists.")
+else :
+    wget.download("https://www.dropbox.com/s/gtr5rjb3x589lyl/credentials.json?dl=1")
+    print ("\n")
+    print ("credentials.json installed.")
