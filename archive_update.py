@@ -88,14 +88,15 @@ def checkUpdateStatus(checkForUpdate):
             archive_url = f.readline().strip()
             f.close()
 
-            # Cleanup of update.txt if necessary
+            # Cleanup of archive.txt if necessary
             if os.path.exists(archive_info_file):
                 os.remove(archive_info_file)
 
+            # Download the latest archive.txt
             print ("Checking latest version of", archive)
             archive_info_file_new = wget.download(version_url, extract_dir)
 
-            #print
+            # Read URL of files from archive.txt
 
             f = open(archive_info_file_new, 'r')
             archive = f.readline().strip()
@@ -114,9 +115,6 @@ def checkUpdateStatus(checkForUpdate):
             print ("Latest:", archive_version)
             print ("Current:", current_version)
 
-            # remove downloaded archive_info_file 
-            os.remove(archive_info_file)
-
             # Download newer archive
             if versionCompare(archive_version, current_version) == 1:
                 print ("Downloading version", archive_version, "from", archive_url)
@@ -132,8 +130,8 @@ def checkUpdateStatus(checkForUpdate):
                 os.remove(archive_filename)
 
                 # move file
-                path = os.path.join(newPath, archive_info_file_new)
-                shutil.move(path, archive_info_file)
+                # path = os.path.join(newPath, archive_info_file_new)
+                # shutil.move(path, archive_info_file)
                 
                 # Remember the downloaded version
                 f = open(version_cur_file, 'w')
