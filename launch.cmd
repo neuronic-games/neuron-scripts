@@ -1,10 +1,10 @@
-::start cmd /c python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\report_status.py"
-::start cmd /c python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\guard.py"
-
 :: Launcher script with auto restart and logging
-:: (c) Neuronic 2021
+:: (c) Neuronic 2023
+
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CHECK_RELEASE
+start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\archive_update.py"
+
 goto START
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

@@ -20,7 +20,7 @@ if (args.archive):
         wget.download(args.archive, folder)
         print ("\n")
         print ("Archive info downloaded.")
-    archive_update.checkUpdateStatus(True)
+    archive_update.checkUpdateStatus()
     print ("Archive installed.")
     exit()
 
