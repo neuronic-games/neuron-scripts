@@ -141,9 +141,9 @@ def checkUpdateStatus():
             
         else:
             print ("No new archive")
-            path = os.path.join(newPath, archive_info_file_new)
-            if os.path.exists(path):
-                os.remove(path)
+            # path = os.path.join(newPath, archive_info_file_new)
+            # if os.path.exists(path):
+            #     os.remove(path)
             downloadCompleted = True
 
     return downloadCompleted
