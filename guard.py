@@ -11,11 +11,17 @@ from ctypes import byref, c_int, windll, wintypes
 from os import getenv, getcwd
 import shutil
 import keyboard
+import argparse
 from multiprocessing import Process
 
 NEURONIC_LOGO = r'neuronic.png'
 CRASH_LOG = r'crash.log'
 DESKTOP_COLOR = RGB(0, 0, 0)
+
+parser = argparse.ArgumentParser(description='Guard app against crashes.')
+parser.add_argument('--debug', action=argparse.BooleanOptionalAction, help='Do not hide windows')
+
+args = parser.parse_args()
 
 # Calling archive update
 import archive_update
@@ -148,7 +154,8 @@ try:
                         # Show the bottom taskbar
                         windll.user32.ShowWindow(initApp.taskBarStatus, 9)
                         # Close CMD Console
-                        windll.user32.DestroyWindow(initApp.consoleBarHandler)
+                        if not audit_setting.debug :
+                            windll.user32.DestroyWindow(initApp.consoleBarHandler)
                         # Kill the processes
                         # Use if using Python v2+
                         taskProcess.terminate()
@@ -180,7 +187,8 @@ try:
                     # Show the bottom taskbar
                     windll.user32.ShowWindow(initApp.taskBarStatus, 9)
                     # Close CMD Console
-                    windll.user32.DestroyWindow(initApp.consoleBarHandler)
+                    if not audit_setting.debug :
+                        windll.user32.DestroyWindow(initApp.consoleBarHandler)
                     # Kill the processes
                     # Use if using Python v2+
                     taskProcess.terminate()
@@ -215,7 +223,8 @@ except KeyboardInterrupt:
     # Show the bottom taskbar
     windll.user32.ShowWindow(initApp.taskBarStatus, 9)
     # Close CMD Console
-    windll.user32.DestroyWindow(initApp.consoleBarHandler)
+    if not audit_setting.debug :
+        windll.user32.DestroyWindow(initApp.consoleBarHandler)
     # Kill the processes
     # Use if using Python v2+
     taskProcess.terminate()
