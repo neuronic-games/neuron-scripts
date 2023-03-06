@@ -13,7 +13,7 @@ if (args.archive):
     folder = audit_setting.archivePath
     if not os.path.exists(folder) :
         print ("Creating " + folder)
-        os.mkdir(path)
+        os.mkdir(folder)
     archive = folder + "/archive.txt"
     if not os.path.exists(archive):
         print ("Downloading " + archive)
