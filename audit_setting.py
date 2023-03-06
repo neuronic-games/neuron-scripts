@@ -22,7 +22,7 @@ appEXEPath = r'C:/Program Files/Google/Chrome/Application/'
 appPath = "https://www.neuronicgames.com" # App Path : Change accordingly
 ##############################################################################################
 # Machine Title [Exhibit] from google sheet
-exhibitName = "SKELETAL-POP-1" # Change accordingly
+exhibitName = "SKELETAL-POP-2" # Change accordingly
 ##############################################################################################
 # Crash Log path
 crashPath = r'crash.log'
