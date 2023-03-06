@@ -37,3 +37,5 @@ logoBrand = "logo/neuronic.png"
 # Whether to check for update version of app or not [False in AIR app case]
 checkForUpdate = False
 ##############################################################################################
+
+archivePath = r'C:/Users/admin/Documents/Neuronic/Apps/Skeletal Pop/'
