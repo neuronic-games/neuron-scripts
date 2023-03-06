@@ -63,7 +63,7 @@ def versionCompare(v1, v2):
          return -1
     return 0
 #############################################################
-def checkUpdateStatus():
+def checkUpdateStatus(checkForUpdate = False):
     extract_dir = audit_setting.archivePath
     archive_info_file = audit_setting.archivePath + "/archive.txt"
     version_cur_file = audit_setting.archivePath + "/version.txt"
