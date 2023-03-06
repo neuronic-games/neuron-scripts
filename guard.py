@@ -154,8 +154,8 @@ try:
                         # Show the bottom taskbar
                         windll.user32.ShowWindow(initApp.taskBarStatus, 9)
                         # Close CMD Console
-                        # if not args.debug :
-                        #     windll.user32.DestroyWindow(initApp.consoleBarHandler)
+                        if not args.debug :
+                            windll.user32.DestroyWindow(initApp.consoleBarHandler)
                         # Kill the processes
                         # Use if using Python v2+
                         taskProcess.terminate()
@@ -187,8 +187,8 @@ try:
                     # Show the bottom taskbar
                     windll.user32.ShowWindow(initApp.taskBarStatus, 9)
                     # Close CMD Console
-                    # if not args.debug :
-                    #     windll.user32.DestroyWindow(initApp.consoleBarHandler)
+                    if not args.debug :
+                        windll.user32.DestroyWindow(initApp.consoleBarHandler)
                     # Kill the processes
                     # Use if using Python v2+
                     taskProcess.terminate()
@@ -223,8 +223,8 @@ except KeyboardInterrupt:
     # Show the bottom taskbar
     windll.user32.ShowWindow(initApp.taskBarStatus, 9)
     # Close CMD Console
-    # if not args.debug :
-    #     windll.user32.DestroyWindow(initApp.consoleBarHandler)
+    if not args.debug :
+        windll.user32.DestroyWindow(initApp.consoleBarHandler)
     # Kill the processes
     # Use if using Python v2+
     taskProcess.terminate()
