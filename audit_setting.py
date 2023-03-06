@@ -22,7 +22,7 @@ appEXEName = 'chrome.exe' # e.g. skeletal-pop.exe
 appParams = "https://www.neuronicgames.com"
 
 # Client logo to be displayed on the desktop
-logoBrand = "logo/neuronic.png"
+logoName = "neuronic.png"
 
 # Check for latest archive defined in archive.txt (False for AIR app)
 checkForUpdate = False
