@@ -25,8 +25,7 @@ version_cur_file = "version.txt"
 version_new_file = "version.new.txt"
 current_version = "0"
 checkOnce = False
-# Download Status
-downloadCompleted = False
+downloadCompleted = False  # Download Status
 
 #############################################################
 # Method to compare two versions.
@@ -78,7 +77,7 @@ def checkUpdateStatus():
     archive_file_exists = exists(archive_info_file)
     if (not archive_file_exists):
         print (archive_info_file, "does not exist in this folder.")
-        downloadCompleted = False
+        downloadCompleted = True
     else:
         print ("Reading " + archive_info_file)
         # Read version.txt
@@ -132,10 +131,6 @@ def checkUpdateStatus():
             os.remove(archive_filename)
             print ("Cleaning up " + archive_filename)
 
-            # move file
-            # path = os.path.join(newPath, archive_info_file_new)
-            # shutil.move(path, archive_info_file)
-            
             # Remember the downloaded version
             f = open(version_cur_file, 'w')
             f.write(archive_version)
@@ -146,9 +141,6 @@ def checkUpdateStatus():
             
         else:
             print ("No new archive")
-            # path = os.path.join(newPath, archive_info_file_new)
-            # if os.path.exists(path):
-            #     os.remove(path)
             downloadCompleted = True
 
     return downloadCompleted
