@@ -14,7 +14,7 @@ args = parser.parse_args()
 
 # Create app folder
 
-folder = os.path.join(audit_setting.neuronAppPath, audit_setting.neuronAppName)
+folder = os.path.join(audit_setting.appPath, audit_setting.appName)
 if not os.path.exists(folder) :
     print ("Creating " + folder)
     os.mkdir(folder)
