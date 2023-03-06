@@ -1,4 +1,5 @@
-#from ctypes import windll
+# (c) Neuronic 2023
+
 import ctypes
 import os, sys, time
 from ctypes.wintypes import RGB
@@ -8,20 +9,21 @@ import shutil
 from os import path, getenv, getcwd
 import audit_setting
 
-target = 'background\\'
+NEURONIC_LOGO = r'neuronic.png'
+CRASH_LOG = r'crash.log'
+DESKTOP_COLOR = RGB(0, 0, 0)
+
 ####################################################################################################
 ### Get Active Wallpapaer
 def getWallpaper():
-    currentWallpaper = os.listdir(target)
-    cwd = os.getcwd()
-    imgName = target + currentWallpaper[0]
-    path = os.path.join(cwd, imgName)
+    path = os.path.join(cwd, NEURONIC_LOGO)
     return path
+
 if __name__ == '__main__':
     color = RGB(65, 57, 121) # blue
     taskBarStatus = windll.user32.FindWindowA(b'Shell_TrayWnd', None)
     #changeSystemColor(color)
-    color = audit_setting.resetDesktopColor
+    color = DESKTOP_COLOR
     # Reset the background solid color to previous
     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
     # Revet back to default set wallpaper

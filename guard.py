@@ -13,6 +13,7 @@ import shutil
 import keyboard
 from multiprocessing import Process
 
+NEURONIC_LOGO = r'neuronic.png'
 CRASH_LOG = r'crash.log'
 DESKTOP_COLOR = RGB(0, 0, 0)
 
