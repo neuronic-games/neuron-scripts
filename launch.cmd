@@ -3,7 +3,9 @@
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CHECK_RELEASE
-start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\archive_update.py"
+:: Check for latest archive for those that are deployed as ZIP files
+:: e.g. Unity EXEs
+python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\archive_update.py"
 
 goto START
 
