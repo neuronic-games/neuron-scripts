@@ -21,7 +21,6 @@ if (args.archive):
         print ("\n")
         print ("Archive info downloaded.")
     archive_update.checkUpdateStatus()
-    print ("Archive installed.")
     exit()
 
 # Basic install of Neuron Guard
