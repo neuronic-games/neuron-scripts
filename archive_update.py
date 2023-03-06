@@ -159,5 +159,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.force :
+    if args.force or audit_setting.checkForUpdate :
         checkUpdateStatus()
