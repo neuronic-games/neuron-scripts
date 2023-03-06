@@ -104,11 +104,12 @@ try:
                 ################################################################################################
                 isChromeApp = appDefaultPath.find('Chrome')
                 if(isChromeApp != -1):
-                    appURL = audit_setting.appPath
+                    appURL = audit_setting.appParams
                     chromeCMD = r'start chrome {}'.format(appURL) + " --start-fullscreen --kiosk --disable-pinch --overscroll-history-navigation=0"
                     subprocess.Popen(chromeCMD, shell = True)
                 else:
-                    subprocess.Popen((appDefaultPath + appName + ' ' + audit_setting.appPath), startupinfo=info)
+                    appFullPath = os.path.join(appDefaultPath, audit_setting.appEXEName)
+                    subprocess.Popen((appFullPath + ' ' + audit_setting.appParams), startupinfo=info)
                 logging.info("{}: App Restarted".format(datetime.now()))
             elif notResponding in res:
                 print('%s - Not responding' % (appName + '.exe'))
