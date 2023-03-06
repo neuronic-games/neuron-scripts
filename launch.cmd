@@ -2,26 +2,18 @@
 :: (c) Neuronic 2023
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:CHECK_RELEASE
-:: Check for latest archive for those that are deployed as ZIP files
-:: e.g. Unity EXEs
+:: Check for latest archive for those that are deployed as ZIP files if
+:: audit_settings.checkForUpdate is True
+:: e.g. Used for Unity EXEs
+
 python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\archive_update.py"
 
-goto START
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Report status into Google Sheet
+
+start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\report_status.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:START
-::goto END
+:: Run and monitor the app
 
-: CHECK_FILES
-
-:: FOR UPDATE GOOGLE SHEET [IF EXE APP]
-::start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\report_status.py"
-:: FOR EXE
 start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\guard.py"
-
-::goto START
-:END
-
-
-
