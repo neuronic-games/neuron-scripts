@@ -13,6 +13,9 @@ import shutil
 import keyboard
 from multiprocessing import Process
 
+CRASH_LOG = r'crash.log'
+DESKTOP_COLOR = RGB(0, 0, 0)
+
 # Calling archive update
 import archive_update
 ####################################################################################################
@@ -37,7 +40,7 @@ def initApp():
     print ("Checking status periodically...")
     ####################################################################################################
     # Solid Color RGB values desktop color
-    color = RGB(0, 0, 0) #audit_setting.desktopColor
+    color = DESKTOP_COLOR
     # Set the background solid color
     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
     # Hide the active dektop background image
@@ -54,18 +57,12 @@ def initApp():
 appDefaultPath = audit_setting.appEXEPath
 ####################################################################################################
 # crash log For writing the stats : add crash.log in the same folder
-crash_file = audit_setting.crashPath #r'crash.log'
-folder = ''
+crash_file = CRASH_LOG
+folder = os.path.join(audit_setting.appPath, audit_setting.appName)
 logging.basicConfig(filename=os.path.join(folder, crash_file), filemode='w', level=logging.INFO)
-### Copy Active file to background folder
-# Providing the folder path
-target = 'background\\'
 ####################################################################################################
 ### Get Active Wallpapaer
 def getWallpaper():
-    # currentWallpaper = os.listdir(target)
-    # cwd = os.getcwd()
-    # imgName = target + currentWallpaper[0]
     path = os.path.join(audit_setting.neuronAppPath, "neuron-scripts", "logo", "neuronic.png")
     return path
 ####################################################################################################
@@ -143,7 +140,7 @@ try:
                 else:
                     _status = checkKeyPress()
                     if _status == True:
-                        color = RGB(0, 0, 0) # audit_setting.resetDesktopColor
+                        color = DESKTOP_COLOR
                         # Reset the background solid color to previous
                         ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
                         # Revet back to default set wallpaper
