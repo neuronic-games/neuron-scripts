@@ -10,7 +10,7 @@ parser.add_argument('--archive', nargs='?', help='URL for archive.txt')
 args = parser.parse_args()
 
 if (args.archive):
-    folder = audit_setting.archivePath
+    folder = os.path.join(audit_setting.neuronAppPath, audit_setting.neuronAppName)
     if not os.path.exists(folder) :
         print ("Creating " + folder)
         os.mkdir(folder)

@@ -64,11 +64,10 @@ def versionCompare(v1, v2):
 #############################################################
 
 def checkUpdateStatus():
-    extract_dir = audit_setting.archivePath
-    archive_info_file = audit_setting.archivePath + "/archive.txt"
-    version_cur_file = audit_setting.archivePath + "/version.txt"
-    version_new_file = "" #"C:/Users/Legion/Documents/Neuronic/version.new.txt"
-    current_version = "0"
+    extract_dir = os.path.join(audit_setting.neuronAppPath, audit_setting.neuronAppName)
+    archive_info_file = os.path.join(audit_setting.neuronAppPath, audit_setting.neuronAppName, "archive.txt")
+    version_cur_file = os.path.join(audit_setting.neuronAppPath, audit_setting.neuronAppName, "version.txt")
+    current_version = "0.0"
     newPath = os.getcwd()
 
     # Download Status

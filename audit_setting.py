@@ -1,12 +1,19 @@
-# audit_setting.py v1.1
+# audit_setting.py v1.2
 # MUMTAZ (c) Neuronic 2023
 
 from ctypes.wintypes import RGB
+
 ##############################################################################################
-########################### PARAMETERS #######################
 # Define google spreadsheet id and default sheet name
 sheetID = "1EICxWfCUwpRw5NRcRtIGP24IfunLArfKy3e4PIqG25c"
 sheetName = "CMH" # Change accordingly
+##############################################################################################
+# Unique exhibit name in Google Sheet
+exhibitName = "MATCH-MOVES-1" # Change accordingly
+##############################################################################################
+# This is the root folder of where the Unity EXE will be installed
+neuronAppPath = r'C:/Users/admin/Documents/Neuronic/Apps'
+neuronAppName = r'Neuron App'  # This is the folder name of the app : Change accordingly
 ##############################################################################################
 # App EXE [EXE]
 # Use exe name for the respective apps name in non chrome based apps [eg : "hpcm-tv-edit.exe"]
@@ -21,9 +28,6 @@ appEXEPath = r'C:/Program Files/Google/Chrome/Application'
 # Fill the URL in case of chrome apps only. Leave blank in case of EXE apps only
 appPath = "https://www.neuronicgames.com" # App Path : Change accordingly
 ##############################################################################################
-# Machine Title [Exhibit] from google sheet
-exhibitName = "SKELETAL-POP-2" # Change accordingly
-##############################################################################################
 # Crash Log path
 crashPath = r'crash.log'
 ##############################################################################################
@@ -37,5 +41,3 @@ logoBrand = "logo/neuronic.png"
 # Whether to check for update version of app or not [False in AIR app case]
 checkForUpdate = False
 ##############################################################################################
-
-archivePath = r'C:/Users/admin/Documents/Neuronic/Apps/Skeletal Pop'
