@@ -64,9 +64,9 @@ def versionCompare(v1, v2):
     return 0
 #############################################################
 def checkUpdateStatus():
-    extract_dir = audit_setting.archivePath.rsplit('/', 2)[0] + "/"
-    archive_info_file = audit_setting.archivePath.rsplit('/', 2)[0] + "/archive.txt"
-    version_cur_file = audit_setting.archivePath.rsplit('/', 2)[0] + "/version.txt"
+    extract_dir = audit_setting.archivePath
+    archive_info_file = audit_setting.archivePath + "/archive.txt"
+    version_cur_file = audit_setting.archivePath + "/version.txt"
     version_new_file = "" #"C:/Users/Legion/Documents/Neuronic/version.new.txt"
     current_version = "0"
     checkOnce = False
