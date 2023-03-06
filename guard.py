@@ -37,7 +37,7 @@ def initApp():
     print ("Checking status periodically...")
     ####################################################################################################
     # Solid Color RGB values desktop color
-    color = audit_setting.desktopColor
+    color = RGB(0, 0, 0) #audit_setting.desktopColor
     # Set the background solid color
     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
     # Hide the active dektop background image
@@ -143,7 +143,7 @@ try:
                 else:
                     _status = checkKeyPress()
                     if _status == True:
-                        color = audit_setting.resetDesktopColor
+                        color = RGB(0, 0, 0) # audit_setting.resetDesktopColor
                         # Reset the background solid color to previous
                         ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
                         # Revet back to default set wallpaper
