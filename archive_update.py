@@ -93,7 +93,7 @@ def checkUpdateStatus(checkForUpdate):
                 os.remove(archive_info_file)
 
             print ("Checking latest version of", archive)
-            archive_info_file_new = wget.download(version_url)
+            archive_info_file_new = wget.download(version_url, extract_dir)
 
             #print
 
@@ -120,7 +120,7 @@ def checkUpdateStatus(checkForUpdate):
             # Download newer archive
             if versionCompare(archive_version, current_version) == 1:
                 print ("Downloading version", archive_version, "from", archive_url)
-                archive_filename = wget.download(archive_url)
+                archive_filename = wget.download(archive_url, extract_dir)
                 #print
 
                 print ("Extracting", archive_filename)
