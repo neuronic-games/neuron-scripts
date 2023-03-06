@@ -63,13 +63,12 @@ def versionCompare(v1, v2):
          return -1
     return 0
 #############################################################
-def checkUpdateStatus(checkForUpdate = False):
+def checkUpdateStatus(checkForUpdate):
     extract_dir = audit_setting.archivePath
     archive_info_file = audit_setting.archivePath + "/archive.txt"
     version_cur_file = audit_setting.archivePath + "/version.txt"
     version_new_file = "" #"C:/Users/Legion/Documents/Neuronic/version.new.txt"
     current_version = "0"
-    checkOnce = False
     newPath = os.getcwd()
 
     # Download Status
@@ -82,74 +81,72 @@ def checkUpdateStatus(checkForUpdate = False):
                 checkOnce = True
                 print (archive_info_file, "does not exist in this folder.")
                 downloadCompleted = True
-                #exit()
         else:
-            if(checkOnce == False):
-                checkOnce = True
-                # Read version.txt
-                f = open(archive_info_file, 'r')
-                archive = f.readline().strip()
-                version_url = f.readline().strip()
-                archive_url = f.readline().strip()
-                f.close()
+            print ("Reading " + archive_info_file)
+            # Read version.txt
+            f = open(archive_info_file, 'r')
+            archive = f.readline().strip()
+            version_url = f.readline().strip()
+            archive_url = f.readline().strip()
+            f.close()
 
-                # Cleanup of update.txt if necessary
-                if os.path.exists(archive_info_file):
-                    os.remove(archive_info_file)
-
-                print ("Checking latest version of", archive)
-                archive_info_file_new = wget.download(version_url)
-
-                #print
-
-                f = open(archive_info_file_new, 'r')
-                archive = f.readline().strip()
-                version_url = f.readline().strip()
-                archive_url = f.readline().strip()
-                archive_version = f.readline().strip()
-                f.close()
-
-                # If version.txt exists, use this as the version number
-                if os.path.exists(version_cur_file):
-                    f = open(version_cur_file, 'r')
-                    current_version = f.readline().strip()
-                    f.close()
-                    
-                print ("Archive:", archive_url)
-                print ("Latest:", archive_version)
-                print ("Current:", current_version)
-
-                # remove downloaded archive_info_file 
+            # Cleanup of update.txt if necessary
+            if os.path.exists(archive_info_file):
                 os.remove(archive_info_file)
 
-                # Download newer archive
-                if versionCompare(archive_version, current_version) == 1:
-                    print ("Downloading version", archive_version, "from", archive_url)
-                    archive_filename = wget.download(archive_url)
-                    #print
+            print ("Checking latest version of", archive)
+            archive_info_file_new = wget.download(version_url)
 
-                    print ("Extracting", archive_filename)
-                    zf = ZipFile(archive_filename, 'r')
-                    zf.extractall(extract_dir)
-                    zf.close()
+            #print
 
-                    # Remove the archive
-                    os.remove(archive_filename)
+            f = open(archive_info_file_new, 'r')
+            archive = f.readline().strip()
+            version_url = f.readline().strip()
+            archive_url = f.readline().strip()
+            archive_version = f.readline().strip()
+            f.close()
 
-                    # move file
-                    path = os.path.join(newPath, archive_info_file_new)
-                    shutil.move(path, archive_info_file)
-                    
-                    # Remember the downloaded version
-                    f = open(version_cur_file, 'w')
-                    f.write(archive_version)
-                    f.close()
-                    downloadCompleted = True
-                    
-                else:
-                    print ("No new archive")
-                    path = os.path.join(newPath, archive_info_file_new)
-                    if os.path.exists(path):
-                        os.remove(path)
-                    downloadCompleted = True
+            # If version.txt exists, use this as the version number
+            if os.path.exists(version_cur_file):
+                f = open(version_cur_file, 'r')
+                current_version = f.readline().strip()
+                f.close()
+                
+            print ("Archive:", archive_url)
+            print ("Latest:", archive_version)
+            print ("Current:", current_version)
+
+            # remove downloaded archive_info_file 
+            os.remove(archive_info_file)
+
+            # Download newer archive
+            if versionCompare(archive_version, current_version) == 1:
+                print ("Downloading version", archive_version, "from", archive_url)
+                archive_filename = wget.download(archive_url)
+                #print
+
+                print ("Extracting", archive_filename)
+                zf = ZipFile(archive_filename, 'r')
+                zf.extractall(extract_dir)
+                zf.close()
+
+                # Remove the archive
+                os.remove(archive_filename)
+
+                # move file
+                path = os.path.join(newPath, archive_info_file_new)
+                shutil.move(path, archive_info_file)
+                
+                # Remember the downloaded version
+                f = open(version_cur_file, 'w')
+                f.write(archive_version)
+                f.close()
+                downloadCompleted = True
+                
+            else:
+                print ("No new archive")
+                path = os.path.join(newPath, archive_info_file_new)
+                if os.path.exists(path):
+                    os.remove(path)
+                downloadCompleted = True
     return downloadCompleted
