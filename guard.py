@@ -172,7 +172,7 @@ try:
                 _status = checkKeyPress()
                 #print(_status, " CSTATUS")
                 if _status == True:
-                    color = audit_setting.resetDesktopColor
+                    color = DESKTOP_COLOR
                     # Reset the background solid color to previous
                     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
                     # Revet back to default set wallpaper
@@ -207,7 +207,7 @@ try:
         startAllProcess()
     ########################################################################################################   
 except KeyboardInterrupt:
-    color = audit_setting.resetDesktopColor
+    color = DESKTOP_COLOR
     # Reset the background solid color to previous
     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
     # Revet back to default set wallpaper
