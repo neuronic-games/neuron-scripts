@@ -155,7 +155,7 @@ def checkUpdateStatus():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Check for latest archive.')
-    parser.add_argument('--force', help='Force an udpate and ignore setting in audit_setting.py')
+    parser.add_argument('--force', action=argparse.BooleanOptionalAction, help='Force an udpate and ignore setting in audit_setting.py')
 
     args = parser.parse_args()
 
