@@ -153,6 +153,3 @@ def checkUpdateStatus():
                         os.remove(path)
                     downloadCompleted = True
     return downloadCompleted
-
-checkForUpdate = True
-checkUpdateStatus()
