@@ -12,11 +12,25 @@ parser.add_argument('--archive', nargs='?', help='Specify the URL for archive.tx
 
 args = parser.parse_args()
 
+# Create app folder
+
+folder = os.path.join(audit_setting.neuronAppPath, audit_setting.neuronAppName)
+if not os.path.exists(folder) :
+    print ("Creating " + folder)
+    os.mkdir(folder)
+
+# Install of Neuron Guard files
+
+if os.path.exists("credentials.json") :
+    print ("credentials.json already exists.")
+else :
+    wget.download("https://www.dropbox.com/s/gtr5rjb3x589lyl/credentials.json?dl=1")
+    print ("\n")
+    print ("credentials.json installed.")
+
+# Install archive if --archive is used
+    
 if (args.archive):
-    folder = os.path.join(audit_setting.neuronAppPath, audit_setting.neuronAppName)
-    if not os.path.exists(folder) :
-        print ("Creating " + folder)
-        os.mkdir(folder)
     archive = os.path.join(folder, "archive.txt")
     if not os.path.exists(archive):
         print ("Downloading " + archive)
@@ -26,11 +40,3 @@ if (args.archive):
     archive_update.checkUpdateStatus()
     exit()
 
-# Basic install of Neuron Guard
-
-if os.path.exists("credentials.json") :
-    print ("credentials.json already exists.")
-else :
-    wget.download("https://www.dropbox.com/s/gtr5rjb3x589lyl/credentials.json?dl=1")
-    print ("\n")
-    print ("credentials.json installed.")
