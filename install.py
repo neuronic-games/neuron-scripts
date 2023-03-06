@@ -11,6 +11,8 @@ args = parser.parse_args()
 
 if (args.archive):
     folder = audit_setting.archivePath
+    if not os.path.exists(folder) :
+        os.mkdir(path)
     archive = folder + "/archive.txt"
     if not os.path.exists(archive):
         wget.download(args.archive, )
