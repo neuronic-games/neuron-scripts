@@ -40,7 +40,7 @@ mSelectedWorkSheet = mGoogleSheet.worksheet(sheetName)
 appDefaultPath = audit_setting.appEXEPath
 ################################################################################################
 # crash log For updating the google audit sheet
-crash_file = audit_setting.crashPath
+crash_file = os.path.join(audit_setting.appPath, audit_setting.appName, "crash.log")
 ################################################################################################
 ## For CMD Console
 # get the handle to the console bar
