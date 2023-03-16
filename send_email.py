@@ -4,7 +4,7 @@ from datetime import datetime
 """ from email.MIMEMultipart import MIMEMultipart
 from email.MIMEBase import MIMEBase
 from email.mime.text import MIMEText """
-from email import Encoders
+from email.encoders import encode_base64
 import smtplib, ssl
 import email_setting
 import argparse
@@ -27,7 +27,7 @@ def send_email_with_attachment(to_addr, attachment_file = None):
     if attachment_file:
         part3 = MIMEBase('application', "octet-stream")
         part3.set_payload(open(attachment_file, "rb").read())
-        Encoders.encode_base64(part3)
+        encode_base64(part3)
 
         visible_name = "attachment"
         extension = os.path.splitext(attachment_file)[1]
