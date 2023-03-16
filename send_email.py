@@ -15,7 +15,7 @@ from getpass import getpass
 from email_utils import EmailConnection, Email
 
 
-print 'I need some information...'
+print ('I need some information...')
 name = raw_input(' - Your name: ')
 email = raw_input(' - Your e-mail: ')
 password = getpass(' - Your password: ')
@@ -26,14 +26,14 @@ subject = 'Sending mail easily with Python'
 message = 'here is the message body'
 attachments = [sys.argv[0]]
 
-print 'Connecting to server...'
+print ('Connecting to server...')
 server = EmailConnection(mail_server, email, password)
-print 'Preparing the email...'
+print ('Preparing the email...')
 email = Email(from_='"%s" <%s>' % (name, email), #you can pass only email
               to='"%s" <%s>' % (to_name, to_email), #you can pass only email
               subject=subject, message=message, attachments=attachments)
-print 'Sending...'
+print ('Sending...')
 server.send(email)
-print 'Disconnecting...'
+print ('Disconnecting...')
 server.close()
-print 'Done!'
+print ('Done!')
