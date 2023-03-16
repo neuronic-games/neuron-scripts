@@ -16,12 +16,12 @@ from email_utils import EmailConnection, Email
 
 
 print ('I need some information...')
-name = raw_input(' - Your name: ')
-email = raw_input(' - Your e-mail: ')
+name = input(' - Your name: ')
+email = input(' - Your e-mail: ')
 password = getpass(' - Your password: ')
-mail_server = raw_input(' - Your mail server: ')
-to_email = raw_input(' - Destination email: ')
-to_name = raw_input(' - Name of destination: ')
+mail_server = input(' - Your mail server: ')
+to_email = input(' - Destination email: ')
+to_name = input(' - Name of destination: ')
 subject = 'Sending mail easily with Python'
 message = 'here is the message body'
 attachments = [sys.argv[0]]
