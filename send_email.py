@@ -34,7 +34,8 @@ def send_email_with_attachment(to_addr, attachment_file = None):
         part3.add_header('Content-Disposition', 'attachment; filename="' + visible_name + extension + '"')
         msg.attach(part3)
 
-    server = smtplib.SMTP(email_setting.smtp_server, email_setting.port)
+    server = smtplib.SMTP()
+    server.connect(email_setting.smtp_server, email_setting.port)
     server.ehlo() # Can be omitted
     server.starttls() #context=context) # Secure the connection (with Phyton 3)
     server.ehlo() # Can be omitted
