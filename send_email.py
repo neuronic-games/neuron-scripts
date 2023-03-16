@@ -42,7 +42,7 @@ def send_email_with_attachment(to_addr, attachment_file = None):
     server.sendmail(email_setting.sender_email, to_addr, msg.as_string())
     server.quit()
 
-    print datetime.now(), ": Mail sent to", to_addr
+    print (datetime.now(), ": Mail sent to", to_addr)
   
 # Try to log in to server and send email
 try:
@@ -52,4 +52,4 @@ except Exception as e:
     # Print any error messages to stdout
     print(e)
 finally:
-    print "Done"
+    print ("Done")
