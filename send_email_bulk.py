@@ -11,7 +11,7 @@ import email.utils
 from email.MIMEMultipart import MIMEMultipart
 from email.MIMEBase import MIMEBase
 from email.mime.text import MIMEText
-from email import Encoders
+from email.encoders import encode_base64
 from datetime import datetime
 import email_setting
 import logging
@@ -96,7 +96,7 @@ def send_email_with_attachment(to_addr, attachment_file):
         logging.info("{}: Error opening {}".format(datetime.now(), attachment_file))
         return False
         
-    Encoders.encode_base64(part3)
+    encode_base64(part3)
 
     visible_name = "attachment"
     extension = os.path.splitext(attachment_file)[1]
