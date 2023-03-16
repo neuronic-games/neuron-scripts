@@ -1,9 +1,9 @@
 # Test email sending. Pyton v2
 
 from datetime import datetime
-from email.MIMEMultipart import MIMEMultipart
-from email.MIMEBase import MIMEBase
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
 from email.encoders import encode_base64
 import smtplib, ssl
 import email_setting
