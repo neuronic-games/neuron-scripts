@@ -1,39 +1,55 @@
-#!/usr/bin/env python
-# coding: utf-8
+# Test email sending. Pyton v2
 
-# This script asks your name, email, password, SMTP server and destination
-# name/email. It'll send an email with this script's code as attachment and
-# with a plain-text message. You can also pass `message_type='html'` in
-# `Email()` to send HTML emails instead of plain text.
-# You need email_utils.py to run it correctly. You can get it on:
-#                 https://gist.github.com/turicas
-# Copyright 2011 Álvaro Justen [alvarojusten at gmail dot com]
-# License: GPL <http://www.gnu.org/copyleft/gpl.html>
+from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email.encoders import encode_base64
+import smtplib, ssl
+import email_setting
+import argparse
 
-import sys
-from getpass import getpass
-from email_utils import EmailConnection, Email
+receiver_email = "tam@myaing.com"
+msg_html = email_setting.message
 
+# Create a secure SSL context (with Python 3)
+# context = ssl.create_default_context()
 
-print ('I need some information...')
-name = input(' - Your name: ')
-email = input(' - Your e-mail: ')
-password = getpass(' - Your password: ')
-mail_server = input(' - Your mail server: ')
-to_email = input(' - Destination email: ')
-to_name = input(' - Name of destination: ')
-subject = 'Sending mail easily with Python'
-message = 'here is the message body'
-attachments = [sys.argv[0]]
+def send_email_with_attachment(to_addr, attachment_file = None):
+    msg = MIMEMultipart()
+    msg['Subject'] = email_setting.subject
+    msg['From'] = email_setting.sender_email
+    msg['To'] = to_addr
 
-print ('Connecting to server...')
-server = EmailConnection(mail_server, email, password)
-print ('Preparing the email...')
-email = Email(from_='"%s" <%s>' % (name, email), #you can pass only email
-              to='"%s" <%s>' % (to_name, to_email), #you can pass only email
-              subject=subject, message=message, attachments=attachments)
-print ('Sending...')
-server.send(email)
-print ('Disconnecting...')
-server.close()
-print ('Done!')
+    part2 = MIMEText(msg_html, 'html')
+    msg.attach(part2)
+
+    if attachment_file:
+        part3 = MIMEBase('application', "octet-stream")
+        part3.set_payload(open(attachment_file, "rb").read())
+        encode_base64(part3)
+
+        visible_name = "attachment"
+        extension = os.path.splitext(attachment_file)[1]
+        part3.add_header('Content-Disposition', 'attachment; filename="' + visible_name + extension + '"')
+        msg.attach(part3)
+
+    server = smtplib.SMTP(email_setting.smtp_server, email_setting.port)
+    server.ehlo() # Can be omitted
+    server.starttls() #context=context) # Secure the connection (with Phyton 3)
+    server.ehlo() # Can be omitted
+    server.login(email_setting.sender_email, email_setting.password)
+    server.sendmail(email_setting.sender_email, to_addr, msg.as_string())
+    server.quit()
+
+    print (datetime.now(), ": Mail sent to", to_addr)
+  
+# Try to log in to server and send email
+try:
+    send_email_with_attachment(receiver_email)
+
+except Exception as e:
+    # Print any error messages to stdout
+    print(e)
+finally:
+    print ("Done")
