@@ -1,5 +1,5 @@
 # Monitor folder for CSV files and send email
-# Pyton v2
+# Pyton v2 / v3
 # Usage: python send_mail_bluk.py
 
 import time
@@ -8,10 +8,21 @@ import csv
 import os, fnmatch
 import re
 import email.utils
-from email.MIMEMultipart import MIMEMultipart
+
+#################################################################
+# When using Python v2+
+""" from email.MIMEMultipart import MIMEMultipart
 from email.MIMEBase import MIMEBase
 from email.mime.text import MIMEText
-from email.encoders import encode_base64
+from email import Encoders """
+#################################################################
+# When using Python v3+
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email import encoders
+#################################################################
+
 from datetime import datetime
 import email_setting
 import logging
@@ -41,9 +52,9 @@ def setup():
     global start_time
     start_time = time.time()
 
-    print os.path.basename(__file__), "- ver 1"
-    print "(c) 2022 Neuronic LLC. All rights reserved."
-    print "Logging in", log_file
+    print (os.path.basename(__file__), "- ver 1")
+    print ("(c) 2022 Neuronic LLC. All rights reserved.")
+    print ("Logging in", log_file)
 
 def open_csv_and_send_mail(file):
     with open(file) as csv_file:
@@ -88,7 +99,6 @@ def send_email_with_attachment(to_addr, attachment_file):
     msg['To'] = to_addr
 
     part2 = MIMEText(msg_html, 'html')
-
     part3 = MIMEBase('application', "octet-stream")
     try:
         part3.set_payload(open(attachment_file, "rb").read())
@@ -96,8 +106,7 @@ def send_email_with_attachment(to_addr, attachment_file):
         logging.info("{}: Error opening {}".format(datetime.now(), attachment_file))
         return False
         
-    encode_base64(part3)
-
+    Encoders.encode_base64(part3)
     visible_name = "attachment"
     extension = os.path.splitext(attachment_file)[1]
     part3.add_header('Content-Disposition', 'attachment; filename="' + visible_name + extension + '"')
@@ -121,12 +130,12 @@ def send_email_with_attachment(to_addr, attachment_file):
     
 try:
     setup()
-    
-    print "Checking periodically in", folder
+    print ("Checking periodically in", folder)
 
     ####################################################################################################
     ## For CMD Console
     # get the handle to the console bar
+    #if(consoleBarHandler != null):
     consoleBarHandler = ctypes.windll.kernel32.GetConsoleWindow()
     # hide the CMD Console
     windll.user32.ShowWindow(consoleBarHandler, 0)
@@ -147,12 +156,12 @@ try:
         time.sleep(0)  # Wait 0 sec  #1 sec
 
 except KeyboardInterrupt:
-    print "Exiting gracefully"
+    print ("Exiting gracefully")
 
 except Exception as e:
     # Print any error messages to stdout
     print(e)
 
 finally:
-    print "Total execution time (sec): ", time_since(start_time)
+    print ("Total execution time (sec): ", time_since(start_time))
     
