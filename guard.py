@@ -1,5 +1,6 @@
 # guard.py v1.0
 # MUMTAZ (c) Neuronic 2023
+# Usage: guard.py
 
 import os, sys, time, subprocess, webbrowser
 import logging
@@ -11,17 +12,7 @@ from ctypes import byref, c_int, windll, wintypes
 from os import getenv, getcwd
 import shutil
 import keyboard
-import argparse
 from multiprocessing import Process
-
-NEURONIC_LOGO = r'neuronic.png'
-CRASH_LOG = r'crash.log'
-DESKTOP_COLOR = RGB(0, 0, 0)
-
-parser = argparse.ArgumentParser(description='Guard app against crashes.')
-parser.add_argument('--debug', action=argparse.BooleanOptionalAction, help='Do not hide windows')
-
-args = parser.parse_args()
 
 # Calling archive update
 import archive_update
@@ -47,13 +38,14 @@ def initApp():
     print ("Checking status periodically...")
     ####################################################################################################
     # Solid Color RGB values desktop color
-    color = DESKTOP_COLOR
+    color = audit_setting.desktopColor
     # Set the background solid color
     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
     # Hide the active dektop background image
-    path = os.path.join(audit_setting.appPath, 'neuron-scripts', 'logo', audit_setting.logoName)
+    cwd = os.getcwd()
+    image_name = audit_setting.logoBrand
+    path = os.path.join(cwd, image_name)
     ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 3)
-    
 ####################################################################################################
 # Getting the list of all running process from the task manager
 # Filter the app passed as param 'name'
@@ -63,13 +55,19 @@ def initApp():
 appDefaultPath = audit_setting.appEXEPath
 ####################################################################################################
 # crash log For writing the stats : add crash.log in the same folder
-crash_file = CRASH_LOG
-folder = os.path.join(audit_setting.appPath, audit_setting.appName)
+crash_file = audit_setting.crashPath #r'crash.log'
+folder = ''
 logging.basicConfig(filename=os.path.join(folder, crash_file), filemode='w', level=logging.INFO)
+### Copy Active file to background folder
+# Providing the folder path
+target = 'background\\'
 ####################################################################################################
 ### Get Active Wallpapaer
 def getWallpaper():
-    path = os.path.join(audit_setting.appPath, "neuron-scripts", "logo", "neuronic.png")
+    currentWallpaper = os.listdir(target)
+    cwd = os.getcwd()
+    imgName = target + currentWallpaper[0]
+    path = os.path.join(cwd, imgName)
     return path
 ####################################################################################################
 try:
@@ -81,22 +79,22 @@ try:
         # print ('# of tasks is %s' % (len(response)))
         for i in range(len(response)):
             s = response[i]
-            #print (name + " ---- ", response[i])
+            # print (name + " ---- ", response[i])
             if name in response[i]:
-                # print ('%s in response[i]' %(name))
+                #print ('%s in response[i]' %(name))
                 return response[i]
         return []
     ########################################################################################################   
     def getTaskProcess():
         '''
-        Timer to call the func (every 1 sec)
+        Timer to call the func (every 5 sec)
         '''
         while True:
             appName = audit_setting.appEXEName.split('.exe')[0]
             notResponding = 'Not Responding'
             # res = getTasks(imgName)
             res = getTasks((appName + '.exe'))
-            #print(res)
+            #print(res, " >>> ")
             if not res:
                 print('%s - Started' % (appName))
                 # Opening the app in maximized mode
@@ -107,12 +105,11 @@ try:
                 ################################################################################################
                 isChromeApp = appDefaultPath.find('Chrome')
                 if(isChromeApp != -1):
-                    appURL = audit_setting.appParams
+                    appURL = audit_setting.appPath
                     chromeCMD = r'start chrome {}'.format(appURL) + " --start-fullscreen --kiosk --disable-pinch --overscroll-history-navigation=0"
                     subprocess.Popen(chromeCMD, shell = True)
                 else:
-                    appFullPath = os.path.join(appDefaultPath, audit_setting.appEXEName)
-                    subprocess.Popen((appFullPath + ' ' + audit_setting.appParams), startupinfo=info)
+                    subprocess.Popen((appDefaultPath + appName + '.exe'))
                 logging.info("{}: App Restarted".format(datetime.now()))
             elif notResponding in res:
                 print('%s - Not responding' % (appName + '.exe'))
@@ -120,7 +117,11 @@ try:
             #else:
                
             # Repeat Timer delay
-            time.sleep(0)
+            #print(len(res), " ---- ")
+            if len(res) == 0:
+                time.sleep(25)
+            else:
+                time.sleep(5)
     ########################################################################################################
     def startAllProcess():
         # Get App Name
@@ -143,10 +144,12 @@ try:
                     # Key Process
                     keyProcess = Process(target=checkKeyPress)
                     keyProcess.start()
+
+                    break
                 else:
                     _status = checkKeyPress()
                     if _status == True:
-                        color = DESKTOP_COLOR
+                        color = audit_setting.resetDesktopColor
                         # Reset the background solid color to previous
                         ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
                         # Revet back to default set wallpaper
@@ -154,8 +157,7 @@ try:
                         # Show the bottom taskbar
                         windll.user32.ShowWindow(initApp.taskBarStatus, 9)
                         # Close CMD Console
-                        if not args.debug :
-                            windll.user32.DestroyWindow(initApp.consoleBarHandler)
+                        windll.user32.DestroyWindow(initApp.consoleBarHandler)
                         # Kill the processes
                         # Use if using Python v2+
                         taskProcess.terminate()
@@ -174,12 +176,13 @@ try:
             keyProcess = Process(target=checkKeyPress)
             keyProcess.start()
 
+
             # Reading Status of Keyboard Press
             while True:
                 _status = checkKeyPress()
                 #print(_status, " CSTATUS")
                 if _status == True:
-                    color = DESKTOP_COLOR
+                    color = audit_setting.resetDesktopColor
                     # Reset the background solid color to previous
                     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
                     # Revet back to default set wallpaper
@@ -187,8 +190,7 @@ try:
                     # Show the bottom taskbar
                     windll.user32.ShowWindow(initApp.taskBarStatus, 9)
                     # Close CMD Console
-                    if not args.debug :
-                        windll.user32.DestroyWindow(initApp.consoleBarHandler)
+                    windll.user32.DestroyWindow(initApp.consoleBarHandler)
                     # Kill the processes
                     # Use if using Python v2+
                     taskProcess.terminate()
@@ -215,7 +217,7 @@ try:
         startAllProcess()
     ########################################################################################################   
 except KeyboardInterrupt:
-    color = DESKTOP_COLOR
+    color = audit_setting.resetDesktopColor
     # Reset the background solid color to previous
     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
     # Revet back to default set wallpaper
@@ -223,15 +225,14 @@ except KeyboardInterrupt:
     # Show the bottom taskbar
     windll.user32.ShowWindow(initApp.taskBarStatus, 9)
     # Close CMD Console
-    if not args.debug :
-        windll.user32.DestroyWindow(initApp.consoleBarHandler)
+    windll.user32.DestroyWindow(initApp.consoleBarHandler)
     # Kill the processes
     # Use if using Python v2+
-    taskProcess.terminate()
-    keyProcess.terminate()
+    #taskProcess.terminate()
+    #keyProcess.terminate()
     # Use if using Python v3+
-    #taskProcess.kill()
-    #keyProcess.kill()
+    taskProcess.kill()
+    keyProcess.kill()
     # Close the running app
     os.system('taskkill /im ' + '\"' + (appName + '.exe') + '\" /f')
     print("Audit script stopped")

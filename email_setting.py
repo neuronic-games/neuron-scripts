@@ -1,17 +1,17 @@
-smtp_server = ""
+smtp_server = "" # <smtp-server-url>
 port = 587  # For starttls
-sender_name = ""
-sender_email = ""
-password = ""
+sender_name = "" # <smtp-sender-name>
+sender_email = "" # <smtp-email-address>
+password = "" # <smtp-password>
 
-folder = r'C:\Users\Legion\Documents\Neuronic\hpcm-tv-edit\to_send'
+folder = r'' # Folder path from where the files to be emailed
 
-subject = "Your day at Bend Kids's Museum"
+subject = "" # <email-subject>
 message = """\
 <html>
   <head></head>
   <body>
-    Here's your Front Page from Bend Kids's Museum<br>
+    Your display email message here<br>
   </body>
 </html>
 """
