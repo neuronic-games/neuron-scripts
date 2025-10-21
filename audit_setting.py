@@ -1,5 +1,5 @@
-# audit_setting.py v1.3
-# MUMTAZ (c) Neuronic 2023
+# audit_setting.py v1.4
+# TAM (c) Neuronic 2025
 
 from ctypes.wintypes import RGB
 
@@ -11,11 +11,11 @@ sheetName = "???" # e.g. CMH
 exhibitName = "???" # e.g. SKELETAL-POP-1
 
 # Folder for apps and app data
-appPath = r'C:/Users/admin/Documents/Neuronic/Apps'
+appPath = r'C:/Users/admin/Neuronic/Apps'
 appName = '???'  # e.g. Skeletal Pop
 
 # Folder for EXE file and its name
-appEXEPath = r'C:/Program Files/Google/Chrome/Application' # e.g. r'C:/Users/admin/Documents/Neuronic/Apps/Skeletal Pop/Skeletal Pop Win'
+appEXEPath = r'C:/Program Files/Google/Chrome/Application' # e.g. r'C:/Users/admin/Neuronic/Apps/Skeletal Pop/Skeletal Pop Win'
 appEXEName = 'chrome.exe' # e.g. skeletal-pop.exe
 
 # Parameters for the EXE or URL for web browser
