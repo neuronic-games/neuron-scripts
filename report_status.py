@@ -69,6 +69,7 @@ host_name = socket.gethostname()
 host_ip = socket.gethostbyname(host_name)
 print (host_name)
 print (host_ip)
+
 mSelectedWorkSheet.update(('B' + str(machinIndex)), host_name)
 mSelectedWorkSheet.update(('C' + str(machinIndex)), host_ip)
 ################################################################################################
