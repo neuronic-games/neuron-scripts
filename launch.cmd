@@ -12,15 +12,15 @@ taskkill /IM python.exe /F
 :: audit_settings.checkForUpdate is True
 :: e.g. Used for Unity EXEs
 
-python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\archive_update.py"
+python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\archive_update.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Report status into Google Sheet
 
-start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\report_status.py"
+start /min cmd /c python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\report_status.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Run and monitor the app
 
-start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\guard.py"
+start /min cmd /c python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\guard.py"
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
