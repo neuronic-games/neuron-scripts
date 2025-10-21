@@ -72,22 +72,23 @@ mSelectedWorkSheet.update(('C' + str(machinIndex)), host_ip)
 ################################################################################################
 # Open the crash log file and update to google sheet and clear the log file
 # update google sheet
-with open(crash_file, 'r') as cLog:
-    total_crash = len(cLog.readlines())
-    # update google sheet
-    mSelectedWorkSheet.update(('F' + str(machinIndex)), total_crash)
-# Write Crash Report
-with open(crash_file, 'r') as cLog:
-    totalStr = ''
-    for line in cLog:
-        d = line.split(": App Restarted")[0].split(".")[0].split(":", 2)[2].split(' ')[1]
-        totalStr += d + ", "
+if os.path.exists(crash_file) :
+    with open(crash_file, 'r') as cLog:
+        total_crash = len(cLog.readlines())
+        # update google sheet
+        mSelectedWorkSheet.update(('F' + str(machinIndex)), total_crash)
+    # Write Crash Report
+    with open(crash_file, 'r') as cLog:
+        totalStr = ''
+        for line in cLog:
+            d = line.split(": App Restarted")[0].split(".")[0].split(":", 2)[2].split(' ')[1]
+            totalStr += d + ", "
+    with open(crash_file, 'w') as cLog:
+        print('Updated the crash report to google sheet for the day!!!')
 # update google sheet
 ## Remove last , from the string
 totalStr = totalStr[:len(totalStr)-2]
 mSelectedWorkSheet.update(('G' + str(machinIndex)), totalStr)
-with open(crash_file, 'w') as cLog:
-    print('Updated the crash report to google sheet for the day!!!')
 ################################################################################################
 ############# Getting the list of all running process from the task manager #############
 # Filter the app passed as param 'name'
