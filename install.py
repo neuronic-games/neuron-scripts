@@ -14,7 +14,7 @@ args = parser.parse_args()
 
 # Create app folder
 
-folder = os.path.join(audit_setting.appPath, audit_setting.appName)
+folder = normalize_folder_os_path(os.path.join(audit_setting.appPath, audit_setting.appName))
 if not os.path.exists(folder) :
     print ("Creating " + folder)
     os.mkdir(folder)
@@ -39,4 +39,15 @@ if (args.archive):
         print ("Archive info downloaded.")
     archive_update.checkUpdateStatus()
     exit()
+    
+def normalize_folder_os_path(path):
+    # Expand user-specific paths (e.g., ~ or ~user)
+    path = os.path.expanduser(path)
+    # Get the absolute path
+    path = os.path.abspath(path)
+    # Normalize the path by removing redundant components (e.g., ., ..)
+    path = os.path.normpath(path)
+    # Resolve any symbolic links
+    path = os.path.realpath(path)
+    return path
 
