@@ -50,6 +50,8 @@ windll.user32.ShowWindow(consoleBarHandler, 0)
 ####################################################################################################
 # Message
 print ("Updating google sheet periodically...")
+print (sheetName)
+
 ################################################################################################
 # Update sheet delay
 updateCounter = 0
