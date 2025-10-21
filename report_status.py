@@ -69,10 +69,12 @@ host_name = socket.gethostname()
 host_ip = socket.gethostbyname(host_name)
 print (host_name)
 print (host_ip)
-print (machinIndex)
+host_name_cell = 'B' + str(machinIndex)
+host_ip_cell = 'C' + str(machinIndex)
+print (host_name_cell)
 
-mSelectedWorkSheet.update(('B' + str(machinIndex)), host_name)
-mSelectedWorkSheet.update(('C' + str(machinIndex)), host_ip)
+mSelectedWorkSheet.update(host_name_cell, host_name)
+mSelectedWorkSheet.update(host_ip_cell, host_ip)
 ################################################################################################
 # Open the crash log file and update to google sheet and clear the log file
 # update google sheet
