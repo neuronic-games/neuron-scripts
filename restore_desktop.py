@@ -9,9 +9,11 @@ import shutil
 from os import path, getenv, getcwd
 import audit_setting
 
-NEURONIC_LOGO = r'neuronic.png'
-CRASH_LOG = r'crash.log'
-DESKTOP_COLOR = RGB(0, 0, 0)
+CRASH_LOG = getattr(audit_setting, 'crashPath', r'crash.log')
+DESKTOP_COLOR = getattr(audit_setting, 'desktopColor', RGB(65, 57, 121))
+RESET_DESKTOP_COLOR = getattr(audit_setting, 'resetDesktopColor', RGB(65, 57, 121))
+NEURONIC_LOGO = getattr(audit_setting, 'logoBrand', "logo/neuronic.png")
+APP_NAME = audit_setting.appEXEName.split('.exe')[0]
 
 ####################################################################################################
 ### Get Active Wallpapaer
@@ -22,11 +24,27 @@ def getWallpaper():
 if __name__ == '__main__':
     color = RGB(65, 57, 121) # blue
     taskBarStatus = windll.user32.FindWindowA(b'Shell_TrayWnd', None)
-    #changeSystemColor(color)
-    color = DESKTOP_COLOR
     # Reset the background solid color to previous
-    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
+    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(DESKTOP_COLOR)))
     # Revet back to default set wallpaper
     ctypes.windll.user32.SystemParametersInfoA(20, 0, getWallpaper(), 3)
     # Show the bottom taskbar
     windll.user32.ShowWindow(taskBarStatus, 9)
+    
+    # Reset the background solid color to previous
+    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(reset_desktop_color)))
+    # Revet back to default set wallpaper
+    ctypes.windll.user32.SystemParametersInfoW(20, 0, getWallpaper(), 3)
+    # Show the bottom taskbar
+    windll.user32.ShowWindow(initApp.taskBarStatus, 9)
+    # Close CMD Console
+    windll.user32.DestroyWindow(initApp.consoleBarHandler)
+    # Kill the processes
+    # Use if using Python v2+
+    taskProcess.terminate()
+    keyProcess.terminate()
+    # Use if using Python v3+
+    #taskProcess.kill()
+    #keyProcess.kill()
+    # Close the running app
+    os.system('taskkill /im ' + '\"' + (APP_NAME + '.exe') + '\" /f')
