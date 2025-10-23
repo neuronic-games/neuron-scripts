@@ -26,3 +26,6 @@ logoName = "neuronic.png"
 
 # Check for latest archive defined in archive.txt (False for AIR app)
 checkForUpdate = False
+
+# The name for the crash log
+crashPath = "crash.log"

@@ -169,8 +169,10 @@ try:
                         os.system('taskkill /im ' + '\"' + (appName + '.exe') + '\" /f')
                         break
         else:
-            taskProcess = Process(target=getTaskProcess)
+            targetProcess = getTaskProcess()
+            taskProcess = Process(target=targetProcess)
             taskProcess.start()
+            print("Starting " + )
             
             # Key Process
             keyProcess = Process(target=checkKeyPress)
