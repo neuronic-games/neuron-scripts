@@ -11,14 +11,14 @@ import audit_setting
 
 CRASH_LOG = getattr(audit_setting, 'crashPath', r'crash.log')
 DESKTOP_COLOR = getattr(audit_setting, 'desktopColor', RGB(65, 57, 121))
-RESET_DESKTOP_COLOR = getattr(audit_setting, 'resetDesktopColor', RGB(65, 57, 121))
-NEURONIC_LOGO = getattr(audit_setting, 'logoBrand', "logo/neuronic.png")
+RESET_DESKTOP_COLOR = getattr(audit_setting, 'resetDesktopColor', RGB(0, 0, 0))
+NEURONIC_LOGO = getattr(audit_setting, 'logoBrand', r'neuronic.png')
 APP_NAME = audit_setting.appEXEName.split('.exe')[0]
 
 ####################################################################################################
 ### Get Active Wallpapaer
 def getWallpaper():
-    path = os.path.join(audit_setting.appPath, 'neuron-scripts', 'logo', NEURONIC_LOGO)
+    path = os.path.join('logo', NEURONIC_LOGO)
     return path
 
 if __name__ == '__main__':
