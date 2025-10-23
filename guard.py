@@ -206,7 +206,7 @@ try:
     ########################################################################################################
     def checkKeyPress():
         _KeyMatched = False
-        if keyboard.is_pressed("f10")
+        if keyboard.is_pressed("f10"):
             _KeyMatched = True
         
         return _KeyMatched
