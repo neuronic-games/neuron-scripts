@@ -18,8 +18,9 @@ from multiprocessing import Process
 import archive_update
 
 APP_DEFAULT_PATH = getattr(audit_setting, 'appDefaultPath', r'C:/Users/admin/Neuronic/Apps')
-APP_NAME = getattr(audit_setting, 'appDefaultPath', r'chrome') 
+APP_NAME = getattr(audit_setting, 'appName', r'chrome') 
 
 path = os.path.join(APP_DEFAULT_PATH, APP_NAME + '.exe')
+print("Opening " + path)
     
 subprocess.Popen(path)
