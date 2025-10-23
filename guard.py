@@ -15,9 +15,9 @@ import keyboard
 from multiprocessing import Process
 
 crash_path = getattr(audit_setting, 'crashPath', r'crash.log')
-desktop_color = getattr(audit_setting, 'desktopColor', RGB(65, 57, 121))
-reset_desktop_color = getattr(audit_setting, 'resetDesktopColor', RGB(65, 57, 121))
-logo_brand = getattr(audit_setting, 'logoBrand', "logo/neuronic.png")
+desktop_color = getattr(audit_setting, 'desktopColor', RGB(0, 0, 0))  # purple RGB(65, 57, 121)
+reset_desktop_color = getattr(audit_setting, 'resetDesktopColor', RGB(0, 0, 0))
+logo_brand = getattr(audit_setting, 'logoBrand', "neuronic.png")
 
 # Calling archive update
 import archive_update
@@ -44,8 +44,8 @@ def initApp():
     # Set the background solid color
     ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(desktop_color)))
     # Hide the active dektop background image
-    cwd = os.getcwd()
-    path = os.path.join(cwd, logo_brand)
+    script_path = os.path.abspath(os.path.dirname(__file__))
+    path = os.path.join(script_path, 'logo', logo_brand)
     ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 3)
     
 ####################################################################################################
