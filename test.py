@@ -17,10 +17,11 @@ from multiprocessing import Process
 # Calling archive update
 import archive_update
 
-APP_DEFAULT_PATH = getattr(audit_setting, 'appDefaultPath', r'C:/Users/admin/Neuronic/Apps')
+APP_EXE_PATH = getattr(audit_setting, 'appEXEPath', r'C:/Program Files/Google/Chrome/Application')
 APP_NAME = getattr(audit_setting, 'appName', r'chrome') 
+APP_EXE_NAME = getattr(audit_setting, 'appName', r'chrome') 
 
-path = os.path.join(APP_DEFAULT_PATH, APP_NAME + '.exe')
+path = os.path.join(APP_EXE_PATH, APP_NAME, APP_EXE_NAME)
 print("Opening " + path)
     
 subprocess.Popen(path)
