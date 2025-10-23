@@ -9,8 +9,6 @@ import shutil
 from os import path, getenv, getcwd
 import audit_setting
 
-CRASH_LOG = getattr(audit_setting, 'crashPath', r'crash.log')
-DESKTOP_COLOR = getattr(audit_setting, 'desktopColor', RGB(65, 57, 121))
 RESET_DESKTOP_COLOR = getattr(audit_setting, 'resetDesktopColor', RGB(0, 0, 0))
 NEURONIC_LOGO = getattr(audit_setting, 'logoBrand', r'neuronic.png')
 APP_NAME = audit_setting.appEXEName.split('.exe')[0]
