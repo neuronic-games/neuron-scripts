@@ -31,8 +31,6 @@ if __name__ == '__main__':
     # Show the bottom taskbar
     windll.user32.ShowWindow(taskBarStatus, 9)
 
-    # Close CMD Console
-    windll.user32.DestroyWindow(initApp.consoleBarHandler)
     # Kill the processes
     # Use if using Python v2+
     taskProcess.terminate()
