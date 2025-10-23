@@ -19,6 +19,7 @@ APP_NAME = audit_setting.appEXEName.split('.exe')[0]
 ### Get Active Wallpapaer
 def getWallpaper():
     path = os.path.join('logo', NEURONIC_LOGO)
+    print ("Restoring logo from " + path)
     return path
 
 if __name__ == '__main__':
