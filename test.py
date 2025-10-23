@@ -18,10 +18,9 @@ from multiprocessing import Process
 import archive_update
 
 APP_EXE_PATH = getattr(audit_setting, 'appEXEPath', r'C:/Program Files/Google/Chrome/Application')
-APP_NAME = getattr(audit_setting, 'appName', r'chrome') 
-APP_EXE_NAME = getattr(audit_setting, 'appName', r'chrome') 
+APP_EXE_NAME = getattr(audit_setting, 'appExeName', r'chrome.exe') 
 
-path = os.path.join(APP_EXE_PATH, APP_NAME, APP_EXE_NAME)
+path = os.path.join(APP_EXE_PATH, APP_EXE_NAME)
 print("Opening " + path)
     
 subprocess.Popen(path)
