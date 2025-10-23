@@ -14,6 +14,9 @@ import shutil
 import keyboard
 from multiprocessing import Process
 
+APP_EXE_PATH = getattr(audit_setting, 'appEXEPath', r'C:/Program Files/Google/Chrome/Application')
+APP_EXE_NAME = getattr(audit_setting, 'appEXEName', r'chrome.exe') 
+
 crash_path = getattr(audit_setting, 'crashPath', r'crash.log')
 desktop_color = getattr(audit_setting, 'desktopColor', RGB(0, 0, 0))  # purple RGB(65, 58, 123)
 reset_desktop_color = getattr(audit_setting, 'resetDesktopColor', RGB(0, 0, 0))
@@ -52,10 +55,6 @@ def initApp():
 # Getting the list of all running process from the task manager
 # Filter the app passed as param 'name'
 ####################################################################################################
-# Define the installed path for the app
-# FOR EXE/CHROME
-appDefaultPath = audit_setting.appEXEPath
-####################################################################################################
 # crash log For writing the stats : add crash.log in the same folder
 folder = ''
 logging.basicConfig(filename=os.path.join(folder, crash_path), filemode='w', level=logging.INFO)
@@ -91,30 +90,31 @@ try:
         Timer to call the func (every 5 sec)
         '''
         while True:
-            appName = audit_setting.appEXEName.split('.exe')[0]
             notResponding = 'Not Responding'
             # res = getTasks(imgName)
-            res = getTasks((appName + '.exe'))
+            res = getTasks(APP_EXE_NAME)
             #print(res, " >>> ")
             if not res:
-                print('%s - Started' % (appName))
+                print('%s - Started' % (APP_EXE_NAME))
                 # Opening the app in maximized mode
                 SW_MAXIMIZE = 3
                 info = subprocess.STARTUPINFO()
                 info.dwFlags = subprocess.STARTF_USESHOWWINDOW
                 info.wShowWindow = SW_MAXIMIZE
                 ################################################################################################
-                isChromeApp = appDefaultPath.find('Chrome')
+                isChromeApp = APP_EXE_PATH.find('Chrome')
                 if(isChromeApp != -1):
                     appURL = audit_setting.appPath
                     chromeCMD = r'start chrome {}'.format(appURL) + " --start-fullscreen --kiosk --disable-pinch --overscroll-history-navigation=0"
                     subprocess.Popen(chromeCMD, shell = True)
                 else:
-                    subprocess.Popen((appDefaultPath + appName + '.exe'))
+                    path = os.path.join(APP_EXE_PATH, APP_EXE_NAME)
+                    print("Opening " + path)
+                    subprocess.Popen(path)
                 logging.info("{}: App Restarted".format(datetime.now()))
             elif notResponding in res:
-                print('%s - Not responding' % (appName + '.exe'))
-                os.system('taskkill /im ' + '\"' + (appName + '.exe') + '\" /f')
+                print('%s - Not responding' % (APP_EXE_NAME))
+                os.system('taskkill /im ' + '\"' + APP_EXE_NAME + '\" /f')
             #else:
                
             # Repeat Timer delay
@@ -125,9 +125,6 @@ try:
                 time.sleep(5)
     ########################################################################################################
     def startAllProcess():
-        # Get App Name
-        appName = audit_setting.appEXEName.split('.exe')[0]
-
         # Check whether to look for update version of app or not
         if audit_setting.checkForUpdate == True:
             # Checking update status
@@ -166,7 +163,7 @@ try:
                         #taskProcess.kill()
                         #keyProcess.kill()
                         # Close the running app
-                        os.system('taskkill /im ' + '\"' + (appName + '.exe') + '\" /f')
+                        os.system('taskkill /im ' + '\"' + APP_EXE_NAME + '\" /f')
                         break
         else:
             targetProcess = getTaskProcess()
@@ -200,7 +197,7 @@ try:
                     #taskProcess.kill()
                     #keyProcess.kill()
                     # Close the running app
-                    os.system('taskkill /im ' + '\"' + (appName + '.exe') + '\" /f')
+                    os.system('taskkill /im ' + '\"' + APP_EXE_NAME + '\" /f')
                     break
 
     ########################################################################################################
@@ -234,5 +231,5 @@ except KeyboardInterrupt:
     taskProcess.kill()
     keyProcess.kill()
     # Close the running app
-    os.system('taskkill /im ' + '\"' + (appName + '.exe') + '\" /f')
+    os.system('taskkill /im ' + '\"' + APP_EXE_NAME + '\" /f')
     print("Audit script stopped")
