@@ -25,18 +25,12 @@ if __name__ == '__main__':
     color = RGB(65, 57, 121) # blue
     taskBarStatus = windll.user32.FindWindowA(b'Shell_TrayWnd', None)
     # Reset the background solid color to previous
-    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(DESKTOP_COLOR)))
+    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(RESET_DESKTOP_COLOR)))
     # Revet back to default set wallpaper
     ctypes.windll.user32.SystemParametersInfoA(20, 0, getWallpaper(), 3)
     # Show the bottom taskbar
     windll.user32.ShowWindow(taskBarStatus, 9)
-    
-    # Reset the background solid color to previous
-    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(RESET_DESKTOP_COLOR)))
-    # Revet back to default set wallpaper
-    ctypes.windll.user32.SystemParametersInfoW(20, 0, getWallpaper(), 3)
-    # Show the bottom taskbar
-    windll.user32.ShowWindow(initApp.taskBarStatus, 9)
+
     # Close CMD Console
     windll.user32.DestroyWindow(initApp.consoleBarHandler)
     # Kill the processes
