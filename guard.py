@@ -14,6 +14,10 @@ import shutil
 import keyboard
 from multiprocessing import Process
 
+crash_path = getattr(audit_setting, 'crashPath', r'crash.log')
+desktop_color = getattr(audit_setting, 'desktopColor', RGB(65, 57, 121))
+reset_desktop_color = getattr(audit_setting, 'resetDesktopColor', RGB(65, 57, 121))
+
 # Calling archive update
 import archive_update
 ####################################################################################################
@@ -36,16 +40,14 @@ def initApp():
     ####################################################################################################
     # Message
     print ("Checking status periodically...")
-    ####################################################################################################
-    # Solid Color RGB values desktop color
-    color = audit_setting.desktopColor
     # Set the background solid color
-    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
+    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(desktop_color)))
     # Hide the active dektop background image
     cwd = os.getcwd()
     image_name = audit_setting.logoBrand
     path = os.path.join(cwd, image_name)
     ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 3)
+    
 ####################################################################################################
 # Getting the list of all running process from the task manager
 # Filter the app passed as param 'name'
@@ -55,9 +57,8 @@ def initApp():
 appDefaultPath = audit_setting.appEXEPath
 ####################################################################################################
 # crash log For writing the stats : add crash.log in the same folder
-crash_file = audit_setting.crashPath #r'crash.log'
 folder = ''
-logging.basicConfig(filename=os.path.join(folder, crash_file), filemode='w', level=logging.INFO)
+logging.basicConfig(filename=os.path.join(folder, crash_path), filemode='w', level=logging.INFO)
 ### Copy Active file to background folder
 # Providing the folder path
 target = 'background\\'
@@ -149,9 +150,8 @@ try:
                 else:
                     _status = checkKeyPress()
                     if _status == True:
-                        color = audit_setting.resetDesktopColor
                         # Reset the background solid color to previous
-                        ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
+                        ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(reset_desktop_color)))
                         # Revet back to default set wallpaper
                         ctypes.windll.user32.SystemParametersInfoW(20, 0, getWallpaper(), 3)
                         # Show the bottom taskbar
@@ -172,7 +172,7 @@ try:
             targetProcess = getTaskProcess()
             taskProcess = Process(target=targetProcess)
             taskProcess.start()
-            print("Starting " + )
+            print("Starting " + targetProcess)
             
             # Key Process
             keyProcess = Process(target=checkKeyPress)
@@ -184,9 +184,8 @@ try:
                 _status = checkKeyPress()
                 #print(_status, " CSTATUS")
                 if _status == True:
-                    color = audit_setting.resetDesktopColor
                     # Reset the background solid color to previous
-                    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
+                    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(reset_desktop_color)))
                     # Revet back to default set wallpaper
                     ctypes.windll.user32.SystemParametersInfoW(20, 0, getWallpaper(), 3)
                     # Show the bottom taskbar
@@ -219,9 +218,8 @@ try:
         startAllProcess()
     ########################################################################################################   
 except KeyboardInterrupt:
-    color = audit_setting.resetDesktopColor
     # Reset the background solid color to previous
-    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(color)))
+    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(reset_desktop_color)))
     # Revet back to default set wallpaper
     ctypes.windll.user32.SystemParametersInfoW(20, 0, getWallpaper(), 3)
     # Show the bottom taskbar
