@@ -30,13 +30,7 @@ if __name__ == '__main__':
     ctypes.windll.user32.SystemParametersInfoA(20, 0, getWallpaper(), 3)
     # Show the bottom taskbar
     windll.user32.ShowWindow(taskBarStatus, 9)
-
-    # Kill the processes
-    # Use if using Python v2+
-    # taskProcess.terminate()
-    # keyProcess.terminate()
-    # Use if using Python v3+
-    #taskProcess.kill()
-    #keyProcess.kill()
+    # Close the guard scripts
+    os.system('taskkill /im ' + '\"' + ('python.exe') + '\" /f')
     # Close the running app
     os.system('taskkill /im ' + '\"' + (APP_NAME + '.exe') + '\" /f')
