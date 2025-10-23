@@ -14,8 +14,9 @@ import shutil
 import keyboard
 from multiprocessing import Process
 
+413a7b
 crash_path = getattr(audit_setting, 'crashPath', r'crash.log')
-desktop_color = getattr(audit_setting, 'desktopColor', RGB(0, 0, 0))  # purple RGB(65, 57, 121)
+desktop_color = getattr(audit_setting, 'desktopColor', RGB(0, 0, 0))  # purple RGB(65, 58, 123)
 reset_desktop_color = getattr(audit_setting, 'resetDesktopColor', RGB(0, 0, 0))
 logo_brand = getattr(audit_setting, 'logoBrand', "neuronic.png")
 
