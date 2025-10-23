@@ -33,8 +33,8 @@ if __name__ == '__main__':
 
     # Kill the processes
     # Use if using Python v2+
-    taskProcess.terminate()
-    keyProcess.terminate()
+    # taskProcess.terminate()
+    # keyProcess.terminate()
     # Use if using Python v3+
     #taskProcess.kill()
     #keyProcess.kill()
