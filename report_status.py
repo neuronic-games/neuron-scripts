@@ -1,4 +1,5 @@
 # report_status.py v2.0
+# Report a pulse to PulseBoard every midnight. A pulse contains up-time, crashes, and resources.
 # Neuronic 2025
 
 import os
@@ -13,7 +14,6 @@ import urllib.parse
 from ctypes import windll
 from datetime import datetime
 
-import keyboard
 import settings
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
@@ -184,10 +184,5 @@ while True:
         elif datetime.now().strftime("%H:%M:%S") == '00:00:00':
             # Daily midnight refresh — include crash count for the day
             send_pulse(status='Ok', include_crashes=True)
-
-        # Win+Shift+D to exit
-        if keyboard.is_pressed("left windows") and keyboard.is_pressed("shift") and keyboard.is_pressed("d"):
-            windll.user32.DestroyWindow(console)
-            break
 
         time.sleep(5)
