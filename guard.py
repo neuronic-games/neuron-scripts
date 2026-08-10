@@ -20,7 +20,7 @@ if __name__ == '__main__':
     sys.stdout = _Tee(sys.__stdout__, _log_file)
     sys.stderr = _Tee(sys.__stderr__, _log_file)
     print('guard.py starting...')
-    print('Press Ctrl+Shift+D to quit and restore desktop.')
+    print('Press Ctrl+Shift+S to quit and restore desktop.')
 
 import time, subprocess, logging, ctypes, keyboard
 from datetime import datetime
@@ -112,7 +112,7 @@ def startAllProcess():
 
     try:
         while True:
-            if keyboard.is_pressed('ctrl+shift+d'):
+            if keyboard.is_pressed('ctrl+shift+s'):
                 restore_desktop()
                 os.system(f'taskkill /im "{APP_EXE_NAME}" /f')
                 break
