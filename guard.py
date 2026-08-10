@@ -80,7 +80,6 @@ def getTaskProcess():
     try:
         while True:
             res = getTasks(APP_EXE_NAME)
-            print(f'[monitor] {APP_EXE_NAME} -> {repr(res[:80]) if res else "not found"}')
             if not res:
                 if 'Chrome' in APP_EXE_PATH:
                     url = settings.appPath
@@ -90,7 +89,10 @@ def getTaskProcess():
                 else:
                     path = os.path.join(APP_EXE_PATH, APP_EXE_NAME)
                     print(f'Starting: {path}')
-                    subprocess.Popen(path)
+                    info = subprocess.STARTUPINFO()
+                    info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+                    info.wShowWindow = 3  # SW_MAXIMIZE
+                    subprocess.Popen(path, startupinfo=info)
                 logging.info(f'{datetime.now()}: App started')
             elif 'Not Responding' in res:
                 print(f'{APP_EXE_NAME} not responding — restarting...')
