@@ -32,15 +32,6 @@ if not os.path.exists(folder) :
     print ("Creating " + folder)
     os.mkdir(folder)
 
-# Install of Neuron Guard files
-
-if os.path.exists("credentials.json") :
-    print ("credentials.json already exists.")
-else :
-    wget.download(settings.credentials)
-    print ("\n")
-    print ("credentials.json installed.")
-
 # Install archive if --archive is used
     
 if (args.archive):
