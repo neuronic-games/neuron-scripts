@@ -10,7 +10,11 @@ if __name__ == '__main__':
     class _Tee:
         def __init__(self, *streams): self.streams = streams
         def write(self, data):
-            for s in self.streams: s.write(data)
+            for s in self.streams:
+                try:
+                    s.write(data)
+                except UnicodeEncodeError:
+                    s.write(data.encode('ascii', errors='replace').decode('ascii'))
         def flush(self):
             for s in self.streams: s.flush()
     sys.stdout = _Tee(sys.__stdout__, _log_file)
@@ -76,7 +80,7 @@ def getTaskProcess():
     try:
         while True:
             res = getTasks(APP_EXE_NAME)
-            print(f'[monitor] {APP_EXE_NAME} → {repr(res[:80]) if res else "not found"}')
+            print(f'[monitor] {APP_EXE_NAME} -> {repr(res[:80]) if res else "not found"}')
             if not res:
                 if 'Chrome' in APP_EXE_PATH:
                     url = settings.appPath
