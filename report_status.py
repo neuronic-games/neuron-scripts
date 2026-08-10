@@ -7,6 +7,7 @@ import time
 import json
 import socket
 import ctypes
+import platform
 import urllib.request
 import urllib.parse
 from ctypes import windll
@@ -22,6 +23,75 @@ host_ip    = socket.gethostbyname(host_name)
 pulse_url  = f"https://zapsheets.com/app/{settings.sheetID}/pulseboard/pulse"
 
 console = ctypes.windll.kernel32.GetConsoleWindow()
+
+# ── System info ───────────────────────────────────────────────────────────────
+
+class MEMORYSTATUSEX(ctypes.Structure):
+    _fields_ = [
+        ('dwLength',                ctypes.c_ulong),
+        ('dwMemoryLoad',            ctypes.c_ulong),
+        ('ullTotalPhys',            ctypes.c_ulonglong),
+        ('ullAvailPhys',            ctypes.c_ulonglong),
+        ('ullTotalPageFile',        ctypes.c_ulonglong),
+        ('ullAvailPageFile',        ctypes.c_ulonglong),
+        ('ullTotalVirtual',         ctypes.c_ulonglong),
+        ('ullAvailVirtual',         ctypes.c_ulonglong),
+        ('ullAvailExtendedVirtual', ctypes.c_ulonglong),
+    ]
+
+def get_os():
+    try:
+        ver   = platform.version().split('.')
+        build = int(ver[2]) if len(ver) >= 3 else 0
+        name  = 'Windows 11' if build >= 22000 else f'Windows {platform.release()}'
+        return f'{name} (build {build})'
+    except Exception:
+        return platform.system()
+
+def get_memory():
+    try:
+        mem = MEMORYSTATUSEX()
+        mem.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+        ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(mem))
+        free_gb  = mem.ullAvailPhys / (1024 ** 3)
+        total_gb = mem.ullTotalPhys / (1024 ** 3)
+        return f'{free_gb:.1f}/{total_gb:.0f} GB'
+    except Exception:
+        return ''
+
+def get_disk():
+    try:
+        drive = (os.path.splitdrive(settings.appPath)[0] or 'C:') + '\\'
+        free  = ctypes.c_ulonglong(0)
+        total = ctypes.c_ulonglong(0)
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(drive, None, ctypes.byref(total), ctypes.byref(free))
+        free_gb  = free.value  / (1024 ** 3)
+        total_gb = total.value / (1024 ** 3)
+        return f'{free_gb:.0f}/{total_gb:.0f} GB'
+    except Exception:
+        return ''
+
+def get_uptime():
+    try:
+        ctypes.windll.kernel32.GetTickCount64.restype = ctypes.c_ulonglong
+        ms   = ctypes.windll.kernel32.GetTickCount64()
+        secs = ms // 1000
+        d, secs = divmod(secs, 86400)
+        h, secs = divmod(secs, 3600)
+        m       = secs // 60
+        return f'{d}d {h}h {m}m' if d else f'{h}h {m}m'
+    except Exception:
+        return ''
+
+def get_last_reboot():
+    try:
+        from datetime import timedelta
+        ctypes.windll.kernel32.GetTickCount64.restype = ctypes.c_ulonglong
+        ms = ctypes.windll.kernel32.GetTickCount64()
+        reboot = datetime.now() - timedelta(milliseconds=ms)
+        return reboot.strftime('%m/%d %H:%M')
+    except Exception:
+        return ''
 
 # ── Crash log ─────────────────────────────────────────────────────────────────
 
@@ -51,6 +121,11 @@ def send_pulse(status='', include_crashes=False):
         'exhibit': settings.exhibitName,
         'host':    host_name,
         'ip':      host_ip,
+        'os':          get_os(),
+        'memory':      get_memory(),
+        'disk':        get_disk(),
+        'uptime':      get_uptime(),
+        'last_reboot': get_last_reboot(),
         'time':    datetime.now().strftime("%m/%d/%Y  %H:%M:%S"),
     }
     if status:
