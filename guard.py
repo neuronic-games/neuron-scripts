@@ -14,13 +14,13 @@ import shutil
 import keyboard
 from multiprocessing import Process
 
-APP_EXE_PATH = getattr(audit_setting, 'appEXEPath', r'C:/Program Files/Google/Chrome/Application')
-APP_EXE_NAME = getattr(audit_setting, 'appEXEName', r'chrome.exe') 
+APP_EXE_PATH = getattr(settings, 'appEXEPath', r'C:/Program Files/Google/Chrome/Application')
+APP_EXE_NAME = getattr(settings, 'appEXEName', r'chrome.exe') 
 
-crash_path = getattr(audit_setting, 'crashPath', r'crash.log')
-desktop_color = getattr(audit_setting, 'desktopColor', RGB(0, 0, 0))  # purple RGB(65, 58, 123)
-reset_desktop_color = getattr(audit_setting, 'resetDesktopColor', RGB(0, 0, 0))
-logo_brand = getattr(audit_setting, 'logoBrand', "neuronic.png")
+crash_path = getattr(settings, 'crashPath', r'crash.log')
+desktop_color = getattr(settings, 'desktopColor', RGB(0, 0, 0))  # purple RGB(65, 58, 123)
+reset_desktop_color = getattr(settings, 'resetDesktopColor', RGB(0, 0, 0))
+logo_brand = getattr(settings, 'logoBrand', "neuronic.png")
 
 # Calling archive update
 import archive_update

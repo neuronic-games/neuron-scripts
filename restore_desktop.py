@@ -9,8 +9,8 @@ import shutil
 from os import path, getenv, getcwd
 import settings
 
-RESET_DESKTOP_COLOR = getattr(audit_setting, 'resetDesktopColor', RGB(0, 0, 0))
-NEURONIC_LOGO = getattr(audit_setting, 'logoBrand', r'neuronic.png')
+RESET_DESKTOP_COLOR = getattr(settings, 'resetDesktopColor', RGB(0, 0, 0))
+NEURONIC_LOGO = getattr(settings, 'logoBrand', r'neuronic.png')
 APP_NAME = settings.appEXEName.split('.exe')[0]
 
 ####################################################################################################
