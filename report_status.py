@@ -76,10 +76,9 @@ def get_uptime():
         ctypes.windll.kernel32.GetTickCount64.restype = ctypes.c_ulonglong
         ms   = ctypes.windll.kernel32.GetTickCount64()
         secs = ms // 1000
-        d, secs = divmod(secs, 86400)
         h, secs = divmod(secs, 3600)
-        m       = secs // 60
-        return f'{d}d {h}h {m}m' if d else f'{h}h {m}m'
+        m, s    = divmod(secs, 60)
+        return f'{h:02d}:{m:02d}:{s:02d}'
     except Exception:
         return ''
 
@@ -140,9 +139,10 @@ def send_pulse(status='', include_crashes=False):
         with urllib.request.urlopen(pulse_url, data, timeout=15) as resp:
             result = json.loads(resp.read())
         if result.get('ok'):
-            print(f"Pulse sent: {payload.get('status', '(no status)')}  {payload['time']}")
+            now = datetime.now().strftime("%H:%M:%S")
+            print(f"[{now}] Pulse OK")
         else:
-            print(f"Server error: {result.get('error', 'unknown')}")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Server error: {result.get('error', 'unknown')}")
     except Exception as e:
         print(f"Warning: could not reach server ({e})")
 
