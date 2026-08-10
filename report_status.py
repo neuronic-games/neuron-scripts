@@ -177,9 +177,8 @@ def is_running():
 # ── Crash log ─────────────────────────────────────────────────────────────────
 
 crash_file = os.path.join(
-    getattr(settings, 'appPath', ''),
-    getattr(settings, 'appName', ''),
-    'crash.log'
+    os.path.dirname(os.path.abspath(__file__)),
+    getattr(settings, 'crashPath', 'crash.log')
 )
 
 def read_and_clear_crashes():
