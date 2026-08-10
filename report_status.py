@@ -125,15 +125,23 @@ def get_teamviewer_id():
     if _IS_WIN:
         try:
             import winreg
-            for path in [r'SOFTWARE\WOW6432Node\TeamViewer', r'SOFTWARE\TeamViewer']:
+            paths = [
+                r'SOFTWARE\WOW6432Node\TeamViewer',
+                r'SOFTWARE\TeamViewer',
+            ]
+            for path in paths:
                 try:
                     key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path)
                     val, _ = winreg.QueryValueEx(key, 'ClientID')
-                    return str(val)
-                except Exception:
-                    continue
-        except Exception:
-            pass
+                    result = str(val)
+                    print(f'TeamViewer ID found at {path}: {result}')
+                    return result
+                except FileNotFoundError:
+                    print(f'TeamViewer registry key not found: {path}')
+                except Exception as e:
+                    print(f'TeamViewer registry error ({path}): {e}')
+        except Exception as e:
+            print(f'TeamViewer: winreg unavailable: {e}')
     else:
         import re
         try:
@@ -153,6 +161,7 @@ def get_teamviewer_id():
                             return m.group(1)
             except Exception:
                 continue
+    print('TeamViewer ID: not found')
     return ''
 
 # ── Process check ─────────────────────────────────────────────────────────────
