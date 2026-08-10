@@ -5,7 +5,7 @@
 import os, sys, time, subprocess, webbrowser
 import logging
 from datetime import datetime
-import audit_setting
+import settings
 import ctypes
 from ctypes.wintypes import RGB
 from ctypes import byref, c_int, windll, wintypes
@@ -104,7 +104,7 @@ try:
                 ################################################################################################
                 isChromeApp = APP_EXE_PATH.find('Chrome')
                 if(isChromeApp != -1):
-                    appURL = audit_setting.appPath
+                    appURL = settings.appPath
                     chromeCMD = r'start chrome {}'.format(appURL) + " --start-fullscreen --kiosk --disable-pinch --overscroll-history-navigation=0"
                     subprocess.Popen(chromeCMD, shell = True)
                 else:
@@ -126,7 +126,7 @@ try:
     ########################################################################################################
     def startAllProcess():
         # Check whether to look for update version of app or not
-        if audit_setting.checkForUpdate == True:
+        if settings.checkForUpdate == True:
             # Checking update status
             _updateStatus = archive_update.checkUpdateStatus()
             while True:

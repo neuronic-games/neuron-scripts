@@ -7,11 +7,11 @@ from ctypes import byref, c_int, windll
 from os import getenv, getcwd
 import shutil
 from os import path, getenv, getcwd
-import audit_setting
+import settings
 
 RESET_DESKTOP_COLOR = getattr(audit_setting, 'resetDesktopColor', RGB(0, 0, 0))
 NEURONIC_LOGO = getattr(audit_setting, 'logoBrand', r'neuronic.png')
-APP_NAME = audit_setting.appEXEName.split('.exe')[0]
+APP_NAME = settings.appEXEName.split('.exe')[0]
 
 ####################################################################################################
 ### Get Active Wallpapaer

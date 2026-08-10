@@ -13,19 +13,19 @@ from ctypes import windll
 from datetime import datetime
 
 import keyboard
-import audit_setting
+import settings
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 host_name  = socket.gethostname()
 host_ip    = socket.gethostbyname(host_name)
-pulse_url  = f"https://zapsheets.com/app/{audit_setting.sheetID}/pulseboard/pulse"
+pulse_url  = f"https://zapsheets.com/app/{settings.sheetID}/pulseboard/pulse"
 
 console = ctypes.windll.kernel32.GetConsoleWindow()
 
 # ── Crash log ─────────────────────────────────────────────────────────────────
 
-crash_file = os.path.join(audit_setting.appPath, audit_setting.appName, 'crash.log')
+crash_file = os.path.join(settings.appPath, settings.appName, 'crash.log')
 
 def read_and_clear_crashes():
     """Return (count, times_str) from the crash log and clear it."""
@@ -47,8 +47,8 @@ def read_and_clear_crashes():
 
 def send_pulse(status='', include_crashes=False):
     payload = {
-        'tab':     audit_setting.sheetName,
-        'exhibit': audit_setting.exhibitName,
+        'tab':     settings.sheetName,
+        'exhibit': settings.exhibitName,
         'host':    host_name,
         'ip':      host_ip,
         'time':    datetime.now().strftime("%m/%d/%Y  %H:%M:%S"),
@@ -75,13 +75,13 @@ def send_pulse(status='', include_crashes=False):
 
 def is_running():
     for line in os.popen('tasklist').read().splitlines():
-        if audit_setting.appEXEName in line:
+        if settings.appEXEName in line:
             return line
     return ''
 
 # ── Main monitoring loop ──────────────────────────────────────────────────────
 
-print(f"Monitoring {audit_setting.exhibitName} → {pulse_url}")
+print(f"Monitoring {settings.exhibitName} → {pulse_url}")
 
 # On startup: record host/IP and clear any previous crash log
 send_pulse(include_crashes=True)

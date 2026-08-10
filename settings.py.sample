@@ -1,4 +1,4 @@
-# audit_setting.py v1.4
+# settings.py v1.4
 # TAM (c) Neuronic 2025
 
 from ctypes.wintypes import RGB

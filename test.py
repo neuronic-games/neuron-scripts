@@ -5,7 +5,7 @@
 import os, sys, time, subprocess, webbrowser
 import logging
 from datetime import datetime
-import audit_setting
+import settings
 import ctypes
 from ctypes.wintypes import RGB
 from ctypes import byref, c_int, windll, wintypes

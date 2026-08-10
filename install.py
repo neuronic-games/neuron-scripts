@@ -3,7 +3,7 @@
 
 import wget
 import argparse
-import audit_setting
+import settings
 import archive_update
 import os
 
@@ -27,7 +27,7 @@ def normalize_folder_os_path(path):
 
 # Create app folder
 
-folder = normalize_folder_os_path(os.path.join(audit_setting.appPath, audit_setting.appName))
+folder = normalize_folder_os_path(os.path.join(settings.appPath, settings.appName))
 if not os.path.exists(folder) :
     print ("Creating " + folder)
     os.mkdir(folder)
@@ -37,7 +37,7 @@ if not os.path.exists(folder) :
 if os.path.exists("credentials.json") :
     print ("credentials.json already exists.")
 else :
-    wget.download(audit_setting.credentials)
+    wget.download(settings.credentials)
     print ("\n")
     print ("credentials.json installed.")
 

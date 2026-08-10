@@ -13,7 +13,7 @@
 import os, time
 import wget
 from zipfile import ZipFile
-import audit_setting
+import settings
 from os.path import exists
 import shutil
 import argparse
@@ -64,9 +64,9 @@ def versionCompare(v1, v2):
 #############################################################
 
 def checkUpdateStatus():
-    extract_dir = os.path.join(audit_setting.appPath, audit_setting.appName)
-    archive_info_file = os.path.join(audit_setting.appPath, audit_setting.appName, "archive.txt")
-    version_cur_file = os.path.join(audit_setting.appPath, audit_setting.appName, "version.txt")
+    extract_dir = os.path.join(settings.appPath, settings.appName)
+    archive_info_file = os.path.join(settings.appPath, settings.appName, "archive.txt")
+    version_cur_file = os.path.join(settings.appPath, settings.appName, "version.txt")
     current_version = "0.0"
     newPath = os.getcwd()
 
@@ -147,9 +147,9 @@ def checkUpdateStatus():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Check for latest archive.')
-    parser.add_argument('--force', action=argparse.BooleanOptionalAction, help='Force an udpate and ignore setting in audit_setting.py')
+    parser.add_argument('--force', action=argparse.BooleanOptionalAction, help='Force an udpate and ignore setting in settings.py')
 
     args = parser.parse_args()
 
-    if args.force or audit_setting.checkForUpdate :
+    if args.force or settings.checkForUpdate :
         checkUpdateStatus()
