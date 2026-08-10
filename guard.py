@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
 import time, subprocess, logging, ctypes, keyboard
 from datetime import datetime
-from threading import Thread
+from threading import Thread, Event
 from ctypes import byref, c_int, windll
 from ctypes.wintypes import RGB
 import settings
@@ -107,19 +107,23 @@ def startAllProcess():
     if settings.checkForUpdate:
         archive_update.checkUpdateStatus()
 
+    quit_event = Event()
+
+    def on_quit():
+        print('Ctrl+Shift+S pressed — quitting...')
+        restore_desktop()
+        os.system(f'taskkill /im "{APP_EXE_NAME}" /f')
+        quit_event.set()
+
+    keyboard.add_hotkey('ctrl+shift+s', on_quit)
+
     task_thread = Thread(target=getTaskProcess, daemon=True)
     task_thread.start()
 
     try:
-        while True:
-            if keyboard.is_pressed('ctrl+shift+s'):
-                restore_desktop()
-                os.system(f'taskkill /im "{APP_EXE_NAME}" /f')
-                break
-            time.sleep(0.5)
+        quit_event.wait()
     except KeyboardInterrupt:
-        restore_desktop()
-        os.system(f'taskkill /im "{APP_EXE_NAME}" /f')
+        on_quit()
 
 if __name__ == '__main__':
     import traceback
