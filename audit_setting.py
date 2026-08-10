@@ -29,6 +29,3 @@ checkForUpdate = False
 
 # The name for the crash log
 crashPath = "crash.log"
-
-# The service account needed for Google Sheets
-credentials = "https://www.dropbox.com/scl/fi/fl002wwq71zlduuvbl2ty/credentials.json?rlkey=cl9nytg05aojbh596rt1pm1zf&dl=1"
