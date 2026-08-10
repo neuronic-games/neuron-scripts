@@ -18,6 +18,13 @@ import audit_setting
 _here     = os.path.dirname(os.path.abspath(__file__))
 cred_file = os.path.join(_here, 'credentials.json')
 
+# Download credentials if missing
+if not os.path.exists(cred_file):
+    import wget
+    print("Downloading credentials.json...")
+    wget.download(audit_setting.credentials, cred_file)
+    print()
+
 try:
     service_account = gspread.service_account(filename=cred_file)
     workbook        = service_account.open_by_key(audit_setting.sheetID)
