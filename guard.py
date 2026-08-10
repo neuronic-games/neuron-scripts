@@ -166,10 +166,8 @@ try:
                         os.system('taskkill /im ' + '\"' + APP_EXE_NAME + '\" /f')
                         break
         else:
-            targetProcess = getTaskProcess()
-            taskProcess = Process(target=targetProcess)
+            taskProcess = Process(target=getTaskProcess)
             taskProcess.start()
-            print("Starting " + targetProcess)
             
             # Key Process
             keyProcess = Process(target=checkKeyPress)
@@ -209,10 +207,25 @@ try:
         return _KeyMatched
     ########################################################################################################
     if __name__ == '__main__':
-        ## Init Vars
-        initApp()
-        ## Start Process
-        startAllProcess()
+        _log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'guard.log')
+        import sys, traceback
+        class _Tee:
+            def __init__(self, *streams): self.streams = streams
+            def write(self, data):
+                for s in self.streams: s.write(data)
+            def flush(self):
+                for s in self.streams: s.flush()
+        _log_file = open(_log_path, 'w', buffering=1)
+        sys.stdout = _Tee(sys.__stdout__, _log_file)
+        sys.stderr = _Tee(sys.__stderr__, _log_file)
+        try:
+            ## Init Vars
+            initApp()
+            ## Start Process
+            startAllProcess()
+        except Exception:
+            traceback.print_exc()
+            _log_file.flush()
     ########################################################################################################   
 except KeyboardInterrupt:
     # Reset the background solid color to previous
