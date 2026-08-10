@@ -2,8 +2,13 @@
 :: (c) Neuronic 2023
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Close all previously running python files 
+:: Close all previously running python files
 taskkill /IM python.exe /F
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Pull latest scripts from git
+cd /D "%USERPROFILE%\Neuronic\Apps\neuron-scripts"
+git pull
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: COMMENT & UNCOMMENT BELOW SCRIPTS BASED ON THE APP FUNCTIONALITIES
