@@ -34,7 +34,7 @@ if __name__ == '__main__':
         ctypes.windll.user32.SystemParametersInfoW(20, 0, logo_path, 3)
         windll.user32.ShowWindow(task_bar, 9)
 
-    # Kill all Python processes (guard, report_status, etc.)
+    # Kill all Python processes (guard, pulse, etc.)
     if _IS_WIN:
         os.system('taskkill /im python.exe /f')
     else:

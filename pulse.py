@@ -1,4 +1,4 @@
-# report_status.py v3.0
+# pulse.py v3.0
 # Report a pulse to PulseBoard. Cross-platform: Windows, macOS, Linux.
 # Neuronic 2025
 
@@ -232,8 +232,11 @@ def send_pulse(status='', include_crashes=False):
 
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
+CRASH_PULSE_INTERVAL = 5 * 60 * 60  # 5 hours in seconds
+
 print(f"Monitoring {settings.exhibitName} → {pulse_url}")
 send_pulse(include_crashes=True)
+last_crash_pulse = time.time()
 
 update_counter = 0
 while True:
@@ -248,6 +251,8 @@ while True:
         update_counter += 1
         if update_counter == 1:
             send_pulse(status='Ok', include_crashes=True)
-        elif datetime.now().strftime('%H:%M:%S') == '00:00:00':
+            last_crash_pulse = time.time()
+        elif time.time() - last_crash_pulse >= CRASH_PULSE_INTERVAL:
             send_pulse(status='Ok', include_crashes=True)
+            last_crash_pulse = time.time()
         time.sleep(5)

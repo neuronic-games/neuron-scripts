@@ -22,7 +22,7 @@ python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\archive_update.py"
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Report status into Google Sheet
 
-start /min cmd /c python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\report_status.py"
+start /min cmd /c python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\pulse.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Run and monitor the app
