@@ -11,7 +11,7 @@ from obsws_python import ReqClient
 
 HOST = os.getenv("OBS_HOST", "127.0.0.1")
 PORT = int(os.getenv("OBS_PORT", "4455"))
-PASSWORD = os.getenv("OBS_PASSWORD", "neuronic")
+PASSWORD = os.getenv("OBS_PASSWORD", "")
 CAMERA_NAME = os.getenv("OBS_CAMERA_SOURCE", "Integrated Webcam")
 BACKGROUND_REMOVAL_FILTER = "AI Background Removal"
 RECORDINGS = Path.home() / "Documents" / "Neuronic" / "hpcm-tv-record" / "recordings"
