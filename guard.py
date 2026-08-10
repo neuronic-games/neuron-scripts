@@ -60,6 +60,8 @@ def restore_desktop():
 # ── Init ──────────────────────────────────────────────────────────────────────
 def initApp():
     initApp.isStarted    = False
+    # Kill any existing instance of the monitored app
+    os.system(f'taskkill /im "{APP_EXE_NAME}" /f >nul 2>&1')
     initApp.taskBarStatus    = windll.user32.FindWindowA(b'Shell_TrayWnd', None)
     initApp.consoleBarHandler = ctypes.windll.kernel32.GetConsoleWindow()
     windll.user32.ShowWindow(initApp.taskBarStatus, 0)
