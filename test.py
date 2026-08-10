@@ -17,8 +17,8 @@ from multiprocessing import Process
 # Calling archive update
 import archive_update
 
-APP_EXE_PATH = getattr(audit_setting, 'appEXEPath', r'C:/Program Files/Google/Chrome/Application')
-APP_EXE_NAME = getattr(audit_setting, 'appEXEName', r'chrome.exe') 
+APP_EXE_PATH = getattr(settings, 'appEXEPath', r'C:/Program Files/Google/Chrome/Application')
+APP_EXE_NAME = getattr(settings, 'appEXEName', r'chrome.exe') 
 
 path = os.path.join(APP_EXE_PATH, APP_EXE_NAME)
 print("Opening " + path)
