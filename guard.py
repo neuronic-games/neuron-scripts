@@ -134,7 +134,7 @@ def getTaskProcess():
                         subprocess.Popen(path, startupinfo=info)
                     else:
                         subprocess.Popen([path])
-                logging.info(f'{datetime.now()}: App started')
+                logging.info(f'{datetime.now()}: App Restarted')
             elif 'Not Responding' in res:
                 print(f'{APP_EXE_NAME} not responding — restarting...')
                 kill_app()

@@ -248,7 +248,7 @@ while True:
     else:
         update_counter += 1
         if update_counter == 1:
-            send_pulse(status='Ok')
+            send_pulse(status='Ok', include_crashes=True)
         elif datetime.now().strftime('%H:%M:%S') == '00:00:00':
             send_pulse(status='Ok', include_crashes=True)
         time.sleep(5)
