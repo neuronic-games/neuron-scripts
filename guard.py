@@ -76,6 +76,7 @@ def getTaskProcess():
     try:
         while True:
             res = getTasks(APP_EXE_NAME)
+            print(f'[monitor] {APP_EXE_NAME} → {repr(res[:80]) if res else "not found"}')
             if not res:
                 if 'Chrome' in APP_EXE_PATH:
                     url = settings.appPath
