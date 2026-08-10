@@ -22,5 +22,5 @@ start /min cmd /c python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\report_stat
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Run and monitor the app
 
-start /min cmd /c python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\guard.py" 2>"%USERPROFILE%\Neuronic\Apps\neuron-scripts\guard.log"
+start /min cmd /c python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\guard.py"
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
