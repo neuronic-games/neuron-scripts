@@ -4,7 +4,7 @@
 from ctypes.wintypes import RGB
 
 # Define google spreadsheet id and default sheet name for status reports
-sheetID = "1EICxWfCUwpRw5NRcRtIGP24IfunLArfKy3e4PIqG25c"
+sheetID = "1FDmuenqlcFrYcqWEsHem3PApsGxmyf87t_M1nSZmnxQ"
 sheetName = "???" # e.g. CMH
 
 # Unique exhibit name in Google Sheet
