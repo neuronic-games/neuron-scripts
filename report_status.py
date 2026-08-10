@@ -29,9 +29,15 @@ except Exception as e:
         print("         and set the correct date and time manually.")
         print("       Then re-run this script.")
     elif '403' in msg or 'does not have permission' in msg or isinstance(e, PermissionError):
+        try:
+            import json
+            sa_email = json.load(open(cred_file)).get('client_email', 'unknown')
+        except Exception:
+            sa_email = 'unknown'
         print(f"ERROR: The service account does not have access to sheet ID: {audit_setting.sheetID}")
+        print(f"       Service account: {sa_email}")
         print("       Fix: open the sheet in Google Sheets, click Share, and add")
-        print("         editor@zapsheets-480701.iam.gserviceaccount.com  with Editor access.")
+        print(f"         {sa_email}  with Editor access.")
     elif 'credentials.json' in msg or 'No such file' in msg:
         print("ERROR: credentials.json not found. Make sure it is in the same folder as this script.")
     else:
