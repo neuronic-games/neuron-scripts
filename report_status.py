@@ -21,10 +21,7 @@ host_name  = socket.gethostname()
 host_ip    = socket.gethostbyname(host_name)
 pulse_url  = f"https://zapsheets.com/app/{audit_setting.sheetID}/pulseboard/pulse"
 
-# ── Hide console window ───────────────────────────────────────────────────────
-
 console = ctypes.windll.kernel32.GetConsoleWindow()
-windll.user32.ShowWindow(console, 0)
 
 # ── Crash log ─────────────────────────────────────────────────────────────────
 
