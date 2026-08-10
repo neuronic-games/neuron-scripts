@@ -5,6 +5,9 @@
 :: Close all previously running python files
 taskkill /IM python.exe /F
 
+:: Close the app so guard restarts it cleanly
+taskkill /IM LICMTVStudioRecord.exe /F
+
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Pull latest scripts from git
 cd /D "%USERPROFILE%\Neuronic\Apps\neuron-scripts"
