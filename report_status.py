@@ -119,6 +119,42 @@ def get_last_reboot():
     except Exception:
         return ''
 
+# ── TeamViewer ID ─────────────────────────────────────────────────────────────
+
+def get_teamviewer_id():
+    if _IS_WIN:
+        try:
+            import winreg
+            for path in [r'SOFTWARE\WOW6432Node\TeamViewer', r'SOFTWARE\TeamViewer']:
+                try:
+                    key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path)
+                    val, _ = winreg.QueryValueEx(key, 'ClientID')
+                    return str(val)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+    else:
+        import re
+        try:
+            out = subprocess.check_output(['teamviewer', 'info'], text=True, stderr=subprocess.DEVNULL)
+            m = re.search(r'TeamViewer ID:\s*(\d+)', out)
+            if m:
+                return m.group(1)
+        except Exception:
+            pass
+        for conf in ['/opt/teamviewer/config/global.conf',
+                     os.path.expanduser('~/.config/teamviewer/global.conf')]:
+            try:
+                with open(conf) as f:
+                    for line in f:
+                        m = re.match(r'\s*ClientID\s*=\s*(\d+)', line, re.IGNORECASE)
+                        if m:
+                            return m.group(1)
+            except Exception:
+                continue
+    return ''
+
 # ── Process check ─────────────────────────────────────────────────────────────
 
 def is_running():
@@ -173,8 +209,9 @@ def send_pulse(status='', include_crashes=False):
         'memory':      get_memory(),
         'disk':        get_disk(),
         'uptime':      get_uptime(),
-        'last_reboot': get_last_reboot(),
-        'time':        datetime.now().strftime('%m/%d/%Y  %H:%M:%S'),
+        'last_reboot':   get_last_reboot(),
+        'teamviewer_id': get_teamviewer_id(),
+        'time':          datetime.now().strftime('%m/%d/%Y  %H:%M:%S'),
     }
     if status:
         payload['status'] = status
