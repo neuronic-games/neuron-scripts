@@ -1,103 +1,152 @@
-# report_status.py v2.0
-# Report a pulse to PulseBoard every midnight. A pulse contains up-time, crashes, and resources.
+# report_status.py v3.0
+# Report a pulse to PulseBoard. Cross-platform: Windows, macOS, Linux.
 # Neuronic 2025
 
-import os
-import sys
-import time
-import json
-import socket
-import ctypes
-import platform
-import urllib.request
-import urllib.parse
-from ctypes import windll
-from datetime import datetime
+import os, sys, time, json, socket, platform, subprocess, shutil
+import urllib.request, urllib.parse
+from datetime import datetime, timedelta
 
 import settings
 
+_IS_WIN = sys.platform == 'win32'
+_IS_MAC = sys.platform == 'darwin'
+
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
-host_name  = socket.gethostname()
-host_ip    = socket.gethostbyname(host_name)
-pulse_url  = f"https://zapsheets.com/app/{settings.sheetID}/pulseboard/pulse"
-
-console = ctypes.windll.kernel32.GetConsoleWindow()
+host_name = socket.gethostname()
+host_ip   = socket.gethostbyname(host_name)
+pulse_url = f"https://zapsheets.com/app/{settings.sheetID}/pulseboard/pulse"
 
 # ── System info ───────────────────────────────────────────────────────────────
 
-class MEMORYSTATUSEX(ctypes.Structure):
-    _fields_ = [
-        ('dwLength',                ctypes.c_ulong),
-        ('dwMemoryLoad',            ctypes.c_ulong),
-        ('ullTotalPhys',            ctypes.c_ulonglong),
-        ('ullAvailPhys',            ctypes.c_ulonglong),
-        ('ullTotalPageFile',        ctypes.c_ulonglong),
-        ('ullAvailPageFile',        ctypes.c_ulonglong),
-        ('ullTotalVirtual',         ctypes.c_ulonglong),
-        ('ullAvailVirtual',         ctypes.c_ulonglong),
-        ('ullAvailExtendedVirtual', ctypes.c_ulonglong),
-    ]
-
 def get_os():
     try:
-        ver   = platform.version().split('.')
-        build = int(ver[2]) if len(ver) >= 3 else 0
-        name  = 'Windows 11' if build >= 22000 else f'Windows {platform.release()}'
-        return f'{name} (build {build})'
+        if _IS_WIN:
+            ver   = platform.version().split('.')
+            build = int(ver[2]) if len(ver) >= 3 else 0
+            name  = 'Windows 11' if build >= 22000 else f'Windows {platform.release()}'
+            return f'{name} (build {build})'
+        elif _IS_MAC:
+            return f'macOS {platform.mac_ver()[0]}'
+        else:
+            return f'{platform.system()} {platform.release()}'
     except Exception:
         return platform.system()
 
 def get_memory():
     try:
-        mem = MEMORYSTATUSEX()
-        mem.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
-        ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(mem))
-        free_gb  = mem.ullAvailPhys / (1024 ** 3)
-        total_gb = mem.ullTotalPhys / (1024 ** 3)
+        if _IS_WIN:
+            import ctypes
+            class MEMSTATEX(ctypes.Structure):
+                _fields_ = [('dwLength', ctypes.c_ulong), ('dwMemoryLoad', ctypes.c_ulong),
+                             ('ullTotalPhys', ctypes.c_ulonglong), ('ullAvailPhys', ctypes.c_ulonglong),
+                             ('ullTotalPageFile', ctypes.c_ulonglong), ('ullAvailPageFile', ctypes.c_ulonglong),
+                             ('ullTotalVirtual', ctypes.c_ulonglong), ('ullAvailVirtual', ctypes.c_ulonglong),
+                             ('ullAvailExtendedVirtual', ctypes.c_ulonglong)]
+            mem = MEMSTATEX()
+            mem.dwLength = ctypes.sizeof(MEMSTATEX)
+            ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(mem))
+            free_gb  = mem.ullAvailPhys / (1024 ** 3)
+            total_gb = mem.ullTotalPhys  / (1024 ** 3)
+        elif _IS_MAC:
+            total_bytes = int(subprocess.check_output(['sysctl', '-n', 'hw.memsize']).decode().strip())
+            vm = subprocess.check_output(['vm_stat']).decode()
+            page_size = 4096
+            free_pages = 0
+            for line in vm.splitlines():
+                if 'Pages free' in line or 'Pages inactive' in line:
+                    free_pages += int(line.split(':')[1].strip().rstrip('.'))
+            total_gb = total_bytes / (1024 ** 3)
+            free_gb  = (free_pages * page_size) / (1024 ** 3)
+        else:  # Linux
+            info = {}
+            with open('/proc/meminfo') as f:
+                for line in f:
+                    k, v = line.split(':')
+                    info[k.strip()] = int(v.strip().split()[0]) * 1024
+            total_gb = info['MemTotal']     / (1024 ** 3)
+            free_gb  = info['MemAvailable'] / (1024 ** 3)
         return f'{free_gb:.1f}/{total_gb:.0f} GB'
     except Exception:
         return ''
 
 def get_disk():
     try:
-        drive = (os.path.splitdrive(settings.appPath)[0] or 'C:') + '\\'
-        free  = ctypes.c_ulonglong(0)
-        total = ctypes.c_ulonglong(0)
-        ctypes.windll.kernel32.GetDiskFreeSpaceExW(drive, None, ctypes.byref(total), ctypes.byref(free))
-        free_gb  = free.value  / (1024 ** 3)
-        total_gb = total.value / (1024 ** 3)
+        path = getattr(settings, 'appPath', os.path.expanduser('~'))
+        usage = shutil.disk_usage(path)
+        free_gb  = usage.free  / (1024 ** 3)
+        total_gb = usage.total / (1024 ** 3)
         return f'{free_gb:.0f}/{total_gb:.0f} GB'
     except Exception:
         return ''
 
 def get_uptime():
     try:
-        ctypes.windll.kernel32.GetTickCount64.restype = ctypes.c_ulonglong
-        ms   = ctypes.windll.kernel32.GetTickCount64()
-        secs = ms // 1000
-        h, secs = divmod(secs, 3600)
-        m, s    = divmod(secs, 60)
+        if _IS_WIN:
+            import ctypes
+            ctypes.windll.kernel32.GetTickCount64.restype = ctypes.c_ulonglong
+            secs = ctypes.windll.kernel32.GetTickCount64() // 1000
+        elif _IS_MAC:
+            import re, time as _t
+            out = subprocess.check_output(['sysctl', '-n', 'kern.boottime']).decode()
+            m = re.search(r'sec\s*=\s*(\d+)', out)
+            secs = int(_t.time()) - int(m.group(1)) if m else 0
+        else:  # Linux
+            with open('/proc/uptime') as f:
+                secs = int(float(f.read().split()[0]))
+        h, rem = divmod(secs, 3600)
+        m, s   = divmod(rem, 60)
         return f'{h:02d}:{m:02d}:{s:02d}'
     except Exception:
         return ''
 
 def get_last_reboot():
     try:
-        from datetime import timedelta
-        ctypes.windll.kernel32.GetTickCount64.restype = ctypes.c_ulonglong
-        ms = ctypes.windll.kernel32.GetTickCount64()
-        reboot = datetime.now() - timedelta(milliseconds=ms)
+        if _IS_WIN:
+            import ctypes
+            ctypes.windll.kernel32.GetTickCount64.restype = ctypes.c_ulonglong
+            ms     = ctypes.windll.kernel32.GetTickCount64()
+            reboot = datetime.now() - timedelta(milliseconds=ms)
+        elif _IS_MAC:
+            import re, time as _t
+            out = subprocess.check_output(['sysctl', '-n', 'kern.boottime']).decode()
+            m = re.search(r'sec\s*=\s*(\d+)', out)
+            reboot = datetime.fromtimestamp(int(m.group(1))) if m else datetime.now()
+        else:  # Linux
+            with open('/proc/uptime') as f:
+                reboot = datetime.now() - timedelta(seconds=float(f.read().split()[0]))
         return reboot.strftime('%m/%d %H:%M')
     except Exception:
         return ''
 
+# ── Process check ─────────────────────────────────────────────────────────────
+
+def is_running():
+    try:
+        exe = getattr(settings, 'appEXEName', '')
+        if not exe:
+            return ''
+        if _IS_WIN:
+            for line in os.popen('tasklist').read().splitlines():
+                if exe in line:
+                    return line
+        else:
+            result = subprocess.run(['pgrep', '-f', exe], capture_output=True, text=True)
+            if result.returncode == 0:
+                return result.stdout.strip()
+    except Exception:
+        pass
+    return ''
+
 # ── Crash log ─────────────────────────────────────────────────────────────────
 
-crash_file = os.path.join(settings.appPath, settings.appName, 'crash.log')
+crash_file = os.path.join(
+    getattr(settings, 'appPath', ''),
+    getattr(settings, 'appName', ''),
+    'crash.log'
+)
 
 def read_and_clear_crashes():
-    """Return (count, times_str) from the crash log and clear it."""
     if not os.path.exists(crash_file):
         return 0, ''
     with open(crash_file, 'r') as f:
@@ -112,20 +161,20 @@ def read_and_clear_crashes():
     open(crash_file, 'w').close()
     return len(lines), ', '.join(times)
 
-# ── Send heartbeat to server ──────────────────────────────────────────────────
+# ── Send heartbeat ─────────────────────────────────────────────────────────────
 
 def send_pulse(status='', include_crashes=False):
     payload = {
-        'tab':     settings.sheetName,
-        'exhibit': settings.exhibitName,
-        'host':    host_name,
-        'ip':      host_ip,
+        'tab':         settings.sheetName,
+        'exhibit':     settings.exhibitName,
+        'host':        host_name,
+        'ip':          host_ip,
         'os':          get_os(),
         'memory':      get_memory(),
         'disk':        get_disk(),
         'uptime':      get_uptime(),
         'last_reboot': get_last_reboot(),
-        'time':    datetime.now().strftime("%m/%d/%Y  %H:%M:%S"),
+        'time':        datetime.now().strftime('%m/%d/%Y  %H:%M:%S'),
     }
     if status:
         payload['status'] = status
@@ -139,50 +188,30 @@ def send_pulse(status='', include_crashes=False):
         with urllib.request.urlopen(pulse_url, data, timeout=15) as resp:
             result = json.loads(resp.read())
         if result.get('ok'):
-            now = datetime.now().strftime("%H:%M:%S")
-            print(f"[{now}] Pulse OK")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Pulse OK")
         else:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Server error: {result.get('error', 'unknown')}")
     except Exception as e:
         print(f"Warning: could not reach server ({e})")
 
-# ── Process check ─────────────────────────────────────────────────────────────
-
-def is_running():
-    for line in os.popen('tasklist').read().splitlines():
-        if settings.appEXEName in line:
-            return line
-    return ''
-
-# ── Main monitoring loop ──────────────────────────────────────────────────────
+# ── Main loop ─────────────────────────────────────────────────────────────────
 
 print(f"Monitoring {settings.exhibitName} → {pulse_url}")
-
-# On startup: record host/IP and clear any previous crash log
 send_pulse(include_crashes=True)
 
 update_counter = 0
-
 while True:
     res = is_running()
 
     if not res:
-        # App not running — reset so we send Ok again when it comes back
         update_counter = 0
         time.sleep(2)
-
     elif 'Not Responding' in res:
         time.sleep(2)
-
     else:
         update_counter += 1
-
         if update_counter == 1:
-            # App just started or restarted
             send_pulse(status='Ok')
-
-        elif datetime.now().strftime("%H:%M:%S") == '00:00:00':
-            # Daily midnight refresh — include crash count for the day
+        elif datetime.now().strftime('%H:%M:%S') == '00:00:00':
             send_pulse(status='Ok', include_crashes=True)
-
         time.sleep(5)

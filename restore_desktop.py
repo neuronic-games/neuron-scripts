@@ -1,36 +1,43 @@
-# (c) Neuronic 2023
+# restore_desktop.py v2.0
+# Restore the desktop and kill the monitored app. Cross-platform.
+# Neuronic 2025
 
-import ctypes
-import os, sys, time
-from ctypes.wintypes import RGB
-from ctypes import byref, c_int, windll
-from os import getenv, getcwd
-import shutil
-from os import path, getenv, getcwd
+import os, sys, subprocess
 import settings
 
-RESET_DESKTOP_COLOR = getattr(settings, 'resetDesktopColor', RGB(0, 0, 0))
-NEURONIC_LOGO = getattr(settings, 'logoBrand', r'neuronic.png')
-APP_NAME = settings.appEXEName.split('.exe')[0]
+_IS_WIN = sys.platform == 'win32'
 
-####################################################################################################
-### Get Active Wallpapaer
-def getWallpaper():
-    script_path = os.path.abspath(os.path.dirname(__file__))
-    path = os.path.join(script_path, 'logo', NEURONIC_LOGO)
-    print ("Restoring logo from " + path)
-    return path
+APP_EXE_NAME = getattr(settings, 'appEXEName', '')
+LOGO_BRAND   = getattr(settings, 'logoBrand',  'neuronic.png')
+
+_script_dir = os.path.dirname(os.path.abspath(__file__))
 
 if __name__ == '__main__':
-    color = RGB(65, 57, 121) # blue
-    taskBarStatus = windll.user32.FindWindowA(b'Shell_TrayWnd', None)
-    # Reset the background solid color to previous
-    ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(RESET_DESKTOP_COLOR)))
-    # Revet back to default set wallpaper
-    ctypes.windll.user32.SystemParametersInfoW(20, 0, getWallpaper(), 3)
-    # Show the bottom taskbar
-    windll.user32.ShowWindow(taskBarStatus, 9)
-    # Close the running app
-    os.system('taskkill /im ' + '\"' + (APP_NAME + '.exe') + '\" /f')
-    # Close the guard scripts
-    os.system('taskkill /im ' + '\"' + ('python.exe') + '\" /f')
+    # Kill the monitored app
+    if APP_EXE_NAME:
+        if _IS_WIN:
+            os.system(f'taskkill /im "{APP_EXE_NAME}" /f')
+        else:
+            subprocess.run(['pkill', '-f', APP_EXE_NAME], capture_output=True)
+
+    # Restore Windows desktop
+    if _IS_WIN:
+        import ctypes
+        from ctypes import byref, c_int, windll
+        from ctypes.wintypes import RGB
+
+        RESET_COLOR = getattr(settings, 'resetDesktopColor', RGB(0, 0, 0))
+        logo_path   = os.path.join(_script_dir, 'logo', LOGO_BRAND)
+
+        task_bar = windll.user32.FindWindowA(b'Shell_TrayWnd', None)
+        ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(RESET_COLOR)))
+        ctypes.windll.user32.SystemParametersInfoW(20, 0, logo_path, 3)
+        windll.user32.ShowWindow(task_bar, 9)
+
+    # Kill all Python processes (guard, report_status, etc.)
+    if _IS_WIN:
+        os.system('taskkill /im python.exe /f')
+    else:
+        subprocess.run(['pkill', '-f', 'python'], capture_output=True)
+
+    print('Desktop restored.')
