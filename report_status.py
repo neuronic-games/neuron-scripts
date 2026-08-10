@@ -29,7 +29,7 @@ except Exception as e:
         print("         and set the correct date and time manually.")
         print("       Then re-run this script.")
     elif '403' in msg or 'does not have permission' in msg or isinstance(e, PermissionError):
-        print("ERROR: The service account does not have access to this Google Sheet.")
+        print(f"ERROR: The service account does not have access to sheet ID: {audit_setting.sheetID}")
         print("       Fix: open the sheet in Google Sheets, click Share, and add")
         print("         editor@zapsheets-480701.iam.gserviceaccount.com  with Editor access.")
     elif 'credentials.json' in msg or 'No such file' in msg:
