@@ -1,8 +1,44 @@
-smtp_server = "" # <smtp-server-url>
-port = 587  # For starttls
-sender_name = "" # <smtp-sender-name>
-sender_email = "" # <smtp-email-address>
-password = "" # <smtp-password>
+# --- Which email provider to use: "office365", "gmail", or "greengeeks" ---
+provider = "office365"
+
+sender_name = ""    # <smtp-sender-name>
+sender_email = ""   # <smtp-email-address>
+
+# --- Optional manual SMTP host/port override ---
+# Leave blank to use each provider's default. Required for "greengeeks"
+# (there is no universal GreenGeeks hostname - see below).
+smtp_host = ""
+smtp_port = None
+
+# --- Office 365 settings (only needed if provider == "office365") ---
+# OAuth2 / Modern Auth is required for MFA-enabled accounts.
+# See the setup steps at the top of oauth365.py for how to get these values.
+tenant_id = ""  # <Azure AD / Entra ID tenant ID>
+client_id = ""  # <Azure AD app registration's Application (client) ID>
+scopes = ["https://outlook.office365.com/SMTP.Send"]
+
+# --- Gmail settings (only needed if provider == "gmail") ---
+# Requires 2-Step Verification to be turned on for the account. Then
+# create an app password at https://myaccount.google.com/apppasswords
+# and paste the 16-character password below (spaces don't matter).
+gmail_app_password = ""
+
+# --- GreenGeeks settings (only needed if provider == "greengeeks") ---
+# GreenGeeks mail is plain cPanel hosting - there's no 2FA/OAuth option,
+# just an account password sent over an SSL connection (port 465).
+# Set smtp_host above to your mail server, usually mail.yourdomain.com
+# (confirm the exact value in cPanel > Email Accounts > Connect Devices).
+greengeeks_password = ""
+
+# --- Daily send-count report (optional) ---
+# If set, once a calendar day is over, an email is sent to this address
+# reporting how many emails were sent that day. Leave blank to disable.
+send_daily_test_mail_to = ""
+
+# --- Sent-mail CSV log (optional) ---
+# If set, every successfully sent email is appended to mail_log.csv in
+# this folder (date/time + recipient address). Leave blank to disable.
+mail_log_folder = ""
 
 folder = r'' # Folder path from where the files to be emailed
 

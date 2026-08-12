@@ -25,6 +25,9 @@ from email import encoders
 
 from datetime import datetime
 import email_setting
+import mail_auth
+import mail_stats
+import mail_log
 import logging
 
 import ctypes
@@ -84,13 +87,15 @@ def open_csv_and_send_mail(file):
         logging.info("{}: File {} deleted".format(datetime.now(), file))
 
 def send_email(to_addr):
-    server = smtplib.SMTP(email_setting.smtp_server, email_setting.port)
-    server.ehlo() # Can be omitted
-    server.starttls() #context=context) # Secure the connection (with Phyton 3)
-    server.ehlo() # Can be omitted
-    server.login(email_setting.sender_email, email_setting.password)
-    server.sendmail(email_setting.sender_email, to_addr, msg_html)
-    server.quit()
+    try:
+        server = mail_auth.connect()
+        server.sendmail(email_setting.sender_email, to_addr, msg_html)
+        server.quit()
+    except Exception as e:
+        mail_log.log_sent(to_addr, success=False, error=str(e))
+        raise
+    mail_stats.record_sent()
+    mail_log.log_sent(to_addr, success=True)
 
 def send_email_with_attachment(to_addr, attachment_file):
     msg = MIMEMultipart()
@@ -101,12 +106,15 @@ def send_email_with_attachment(to_addr, attachment_file):
     part2 = MIMEText(msg_html, 'html')
     part3 = MIMEBase('application', "octet-stream")
     try:
-        part3.set_payload(open(attachment_file, "rb").read())
-    except:
+        data = open(attachment_file, "rb").read()
+    except Exception as e:
         logging.info("{}: Error opening {}".format(datetime.now(), attachment_file))
+        mail_log.log_sent(to_addr, success=False, error="Could not open attachment {}: {}".format(attachment_file, e))
         return False
-        
-    Encoders.encode_base64(part3)
+
+    attachment_size = len(data)
+    part3.set_payload(data)
+    encoders.encode_base64(part3)
     visible_name = "attachment"
     extension = os.path.splitext(attachment_file)[1]
     part3.add_header('Content-Disposition', 'attachment; filename="' + visible_name + extension + '"')
@@ -115,17 +123,17 @@ def send_email_with_attachment(to_addr, attachment_file):
     msg.attach(part3)
 
     try:
-        server = smtplib.SMTP(email_setting.smtp_server, email_setting.port)
-        server.ehlo() # Can be omitted
-        server.starttls() #context=context) # Secure the connection (with Phyton 3)
-        server.ehlo() # Can be omitted
-        server.login(email_setting.sender_email, email_setting.password)
+        server = mail_auth.connect()
         server.sendmail(email_setting.sender_email, to_addr, msg.as_string())
         server.quit()
+        mail_stats.record_sent()
+        mail_log.log_sent(to_addr, attachment_size=attachment_size, success=True)
         logging.info("{}: Mail sent to {}".format(datetime.now(), to_addr))
     except Exception as e:
         logging.info("{}: {}".format(datetime.now(), e))
-    
+        mail_log.log_sent(to_addr, attachment_size=attachment_size, success=False, error=str(e))
+        return False
+
     return True
     
 try:
@@ -145,7 +153,12 @@ try:
         for filename in fnmatch.filter(os.listdir(folder), '*.csv'):
             logging.info("{}: Processing {}".format(datetime.now(), filename))
             open_csv_and_send_mail(os.path.join(folder, filename))
-        
+
+        try:
+            mail_stats.send_daily_report_if_due()
+        except Exception as e:
+            logging.info("{}: Error sending daily report: {}".format(datetime.now(), e))
+
         ########################################################################################################
         # checking for Keybaord press
         if keyboard.is_pressed("left windows") and keyboard.is_pressed("shift") and keyboard.is_pressed("d"):
