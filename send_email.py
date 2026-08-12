@@ -8,12 +8,19 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email.encoders import encode_base64
 import os
+import sys
 import settings_email
 import mail_auth
 import mail_stats
 import mail_log
 
-receiver_email = "tam@myaing.com"
+# Usage: python send_email.py <recipient_email> [attachment_file]
+if len(sys.argv) < 2:
+    print("Usage: python send_email.py <recipient_email> [attachment_file]")
+    sys.exit(1)
+
+receiver_email = sys.argv[1]
+attachment_arg = sys.argv[2] if len(sys.argv) > 2 else None
 msg_html = settings_email.message
 
 def send_email_with_attachment(to_addr, attachment_file = None):
@@ -54,7 +61,7 @@ def send_email_with_attachment(to_addr, attachment_file = None):
 
 # Try to log in to server and send email
 try:
-    send_email_with_attachment(receiver_email)
+    send_email_with_attachment(receiver_email, attachment_arg)
 
 except Exception as e:
     # Print any error messages to stdout
