@@ -1,6 +1,6 @@
 # Provider-agnostic SMTP connect + authenticate helper.
 #
-# Reads email_setting.provider ("office365", "gmail", or "greengeeks") and
+# Reads settings_email.provider ("office365", "gmail", or "greengeeks") and
 # returns a ready-to-send, authenticated smtplib server via connect().
 #
 #   - office365: OAuth2 / Modern Auth via oauth365.py (browser login,
@@ -10,7 +10,7 @@
 #   - gmail: App Password. Requires 2-Step Verification to be turned on
 #     for the Google account, then create an app password at
 #     https://myaccount.google.com/apppasswords and put it in
-#     email_setting.gmail_app_password. Google no longer allows plain
+#     settings_email.gmail_app_password. Google no longer allows plain
 #     account passwords for SMTP, so this is the standard way to use
 #     Gmail SMTP with 2FA enabled without a full OAuth2 setup.
 #
@@ -18,17 +18,17 @@
 #     (port 465), which is what GreenGeeks' cPanel-based mail hosting
 #     provides. GreenGeeks mail accounts don't support 2FA/OAuth on SMTP -
 #     the account password over TLS is the only auth method the server
-#     exposes. Set email_setting.smtp_host to your mail server
+#     exposes. Set settings_email.smtp_host to your mail server
 #     (usually mail.yourdomain.com - check cPanel > Email Accounts >
 #     Connect Devices for the exact value) and
-#     email_setting.greengeeks_password to the mailbox password.
+#     settings_email.greengeeks_password to the mailbox password.
 
 import smtplib
 import ssl
-import email_setting
+import settings_email
 import oauth365
 
-# host is provider-specific; None means "must be supplied via email_setting.smtp_host"
+# host is provider-specific; None means "must be supplied via settings_email.smtp_host"
 _SMTP_DEFAULTS = {
     "office365": {"host": "smtp.office365.com", "port": 587, "mode": "starttls"},
     "gmail": {"host": "smtp.gmail.com", "port": 587, "mode": "starttls"},
@@ -37,26 +37,26 @@ _SMTP_DEFAULTS = {
 
 
 def _get_provider_and_config():
-    provider = getattr(email_setting, "provider", "office365").lower()
+    provider = getattr(settings_email, "provider", "office365").lower()
     if provider not in _SMTP_DEFAULTS:
         raise ValueError(
-            "Unknown email_setting.provider %r (expected 'office365', 'gmail', or 'greengeeks')"
+            "Unknown settings_email.provider %r (expected 'office365', 'gmail', or 'greengeeks')"
             % provider
         )
     cfg = dict(_SMTP_DEFAULTS[provider])
 
-    # Allow email_setting.smtp_host / smtp_port to override/supply the host,
+    # Allow settings_email.smtp_host / smtp_port to override/supply the host,
     # since e.g. GreenGeeks' mail server name is account-specific.
-    host_override = getattr(email_setting, "smtp_host", None)
+    host_override = getattr(settings_email, "smtp_host", None)
     if host_override:
         cfg["host"] = host_override
-    port_override = getattr(email_setting, "smtp_port", None)
+    port_override = getattr(settings_email, "smtp_port", None)
     if port_override:
         cfg["port"] = port_override
 
     if not cfg["host"]:
         raise ValueError(
-            "email_setting.smtp_host must be set when provider is %r" % provider
+            "settings_email.smtp_host must be set when provider is %r" % provider
         )
 
     return provider, cfg
@@ -89,22 +89,22 @@ def authenticate(server):
     provider, _ = _get_provider_and_config()
 
     if provider == "gmail":
-        server.login(email_setting.sender_email, email_setting.gmail_app_password)
+        server.login(settings_email.sender_email, settings_email.gmail_app_password)
 
     elif provider == "office365":
         access_token = oauth365.get_access_token(
-            email_setting.tenant_id,
-            email_setting.client_id,
-            email_setting.scopes,
-            email_setting.sender_email,
+            settings_email.tenant_id,
+            settings_email.client_id,
+            settings_email.scopes,
+            settings_email.sender_email,
         )
-        oauth365.smtp_login_oauth2(server, email_setting.sender_email, access_token)
+        oauth365.smtp_login_oauth2(server, settings_email.sender_email, access_token)
 
     elif provider == "greengeeks":
-        server.login(email_setting.sender_email, email_setting.greengeeks_password)
+        server.login(settings_email.sender_email, settings_email.greengeeks_password)
 
     else:
         raise ValueError(
-            "Unknown email_setting.provider %r (expected 'office365', 'gmail', or 'greengeeks')"
+            "Unknown settings_email.provider %r (expected 'office365', 'gmail', or 'greengeeks')"
             % provider
         )

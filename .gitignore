@@ -1,3 +1,4 @@
 *.log
 settings.py
+settings_email.py
 /__pycache__

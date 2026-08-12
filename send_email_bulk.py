@@ -24,7 +24,7 @@ from email import encoders
 #################################################################
 
 from datetime import datetime
-import email_setting
+import settings_email
 import mail_auth
 import mail_stats
 import mail_log
@@ -38,12 +38,12 @@ import keyboard
 
 # Monitors this folder for CSV files containing email address and attachment file
 # name. Each file can contain 1 or more rows of data.
-folder = email_setting.folder
+folder = settings_email.folder
 
 # Create a secure SSL context (with Python 3)
 # context = ssl.create_default_context()
 
-msg_html = email_setting.message
+msg_html = settings_email.message
 regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
 log_file = r'send_mail.log'
 logging.basicConfig(filename=os.path.join(folder, log_file), filemode='w', level=logging.INFO)
@@ -89,7 +89,7 @@ def open_csv_and_send_mail(file):
 def send_email(to_addr):
     try:
         server = mail_auth.connect()
-        server.sendmail(email_setting.sender_email, to_addr, msg_html)
+        server.sendmail(settings_email.sender_email, to_addr, msg_html)
         server.quit()
     except Exception as e:
         mail_log.log_sent(to_addr, success=False, error=str(e))
@@ -99,8 +99,8 @@ def send_email(to_addr):
 
 def send_email_with_attachment(to_addr, attachment_file):
     msg = MIMEMultipart()
-    msg['Subject'] = email_setting.subject
-    msg['From'] = email.utils.formataddr([email_setting.sender_name, email_setting.sender_email])
+    msg['Subject'] = settings_email.subject
+    msg['From'] = email.utils.formataddr([settings_email.sender_name, settings_email.sender_email])
     msg['To'] = to_addr
 
     part2 = MIMEText(msg_html, 'html')
@@ -124,7 +124,7 @@ def send_email_with_attachment(to_addr, attachment_file):
 
     try:
         server = mail_auth.connect()
-        server.sendmail(email_setting.sender_email, to_addr, msg.as_string())
+        server.sendmail(settings_email.sender_email, to_addr, msg.as_string())
         server.quit()
         mail_stats.record_sent()
         mail_log.log_sent(to_addr, attachment_size=attachment_size, success=True)

@@ -1,7 +1,7 @@
 # Tracks how many emails have been sent per calendar day, and (optionally)
 # emails a daily summary once a day's count is final.
 #
-# Enable the daily summary by setting email_setting.send_daily_test_mail_to
+# Enable the daily summary by setting settings_email.send_daily_test_mail_to
 # to an address; leave it "" to disable.
 #
 # Usage:
@@ -20,7 +20,7 @@ import os
 from datetime import date
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import email_setting
+import settings_email
 import mail_auth
 
 _STATS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mail_stats.json")
@@ -68,10 +68,10 @@ def get_today_count():
 
 
 def send_daily_report_if_due():
-    """If email_setting.send_daily_test_mail_to is set and there's a
+    """If settings_email.send_daily_test_mail_to is set and there's a
     completed calendar day (yesterday or earlier) that hasn't been
     reported yet, email its send count and mark it reported."""
-    to_addr = getattr(email_setting, "send_daily_test_mail_to", "")
+    to_addr = getattr(settings_email, "send_daily_test_mail_to", "")
     if not to_addr:
         return
 
@@ -108,10 +108,10 @@ def _send_report_email(to_addr, day_iso, count):
 
     msg = MIMEMultipart()
     msg['Subject'] = "Daily test mail: {} email(s) sent on {}".format(count, day_iso)
-    msg['From'] = email_setting.sender_email
+    msg['From'] = settings_email.sender_email
     msg['To'] = to_addr
     msg.attach(MIMEText(body, 'html'))
 
     server = mail_auth.connect()
-    server.sendmail(email_setting.sender_email, to_addr, msg.as_string())
+    server.sendmail(settings_email.sender_email, to_addr, msg.as_string())
     server.quit()
