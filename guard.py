@@ -61,6 +61,21 @@ def kill_app():
     else:
         subprocess.run(['pkill', '-f', APP_EXE_NAME], capture_output=True)
 
+def kill_pulse():
+    # pulse.py runs as its own separate `python pulse.py` process (started
+    # alongside guard.py by launch.cmd), so it isn't touched by kill_app().
+    # Match on command line rather than taskkill /im python.exe so we don't
+    # also kill guard.py's own process (or any other unrelated python.exe).
+    if _IS_WIN:
+        ps_cmd = (
+            "Get-CimInstance Win32_Process | "
+            "Where-Object { $_.CommandLine -like '*pulse.py*' } | "
+            "ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+        )
+        os.system(f'powershell -NoProfile -Command "{ps_cmd}" >nul 2>&1')
+    else:
+        subprocess.run(['pkill', '-f', 'pulse.py'], capture_output=True)
+
 def getWallpaper():
     bg = os.path.join(_script_dir, 'background')
     files = os.listdir(bg) if os.path.isdir(bg) else []
@@ -153,6 +168,7 @@ def startAllProcess():
         print('Ctrl+Shift+S pressed — quitting...')
         restore_desktop()
         kill_app()
+        kill_pulse()
         quit_event.set()
 
     try:
