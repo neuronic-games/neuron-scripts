@@ -1,3 +1,11 @@
+# settings_email.py.sample
+# Copy this file to settings_email.py and fill in real values.
+# Neuronic 2026
+
+# ============================================================================
+# Email sending settings (send_email.py / send_email_bulk.py)
+# ============================================================================
+
 # --- Which email provider to use: "office365", "gmail", or "greengeeks" ---
 provider = "office365"
 
@@ -36,11 +44,13 @@ greengeeks_password = ""
 send_daily_test_mail_to = ""
 
 # --- Sent-mail CSV log (optional) ---
-# If set, every successfully sent email is appended to mail_log.csv in
-# this folder (date/time + recipient address). Leave blank to disable.
+# If set, every send attempt is appended to mail_log.csv in this folder
+# (date/time, recipient, attachment size, success, error). Leave blank
+# to disable.
 mail_log_folder = ""
 
-folder = r'' # Folder path from where the files to be emailed
+# Folder path from where files are emailed (send_email_bulk.py only)
+folder = r''
 
 subject = "" # <email-subject>
 message = """\
