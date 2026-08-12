@@ -76,6 +76,44 @@ def kill_pulse():
     else:
         subprocess.run(['pkill', '-f', 'pulse.py'], capture_output=True)
 
+def _wait_for_keypress():
+    if _IS_WIN:
+        try:
+            import msvcrt
+            msvcrt.getch()
+            return
+        except Exception:
+            pass
+    try:
+        input()
+    except Exception:
+        pass
+
+def check_app_exists():
+    """Verify the app configured via appEXEPath/appEXEName is actually
+    there before we hide the desktop and start monitoring it. Chrome kiosk
+    mode is exempt - it launches a URL, not a local EXE."""
+    is_chrome = 'Chrome' in APP_EXE_PATH or 'chrome' in APP_EXE_PATH
+    if is_chrome:
+        return True
+
+    path = os.path.join(APP_EXE_PATH, APP_EXE_NAME)
+    if os.path.isfile(path):
+        return True
+
+    print('=' * 70)
+    print('ERROR: Application not found:')
+    print(f'  {path}')
+    print('Check appEXEPath and appEXEName in settings.py.')
+    print('=' * 70)
+    print('Press any key to exit...')
+    _wait_for_keypress()
+
+    # pulse.py is started separately (before guard.py, per launch.cmd) and
+    # would otherwise keep monitoring/reporting for an app that never runs.
+    kill_pulse()
+    return False
+
 def getWallpaper():
     bg = os.path.join(_script_dir, 'background')
     files = os.listdir(bg) if os.path.isdir(bg) else []
@@ -194,8 +232,9 @@ def startAllProcess():
 if __name__ == '__main__':
     import traceback
     try:
-        initApp()
-        startAllProcess()
+        if check_app_exists():
+            initApp()
+            startAllProcess()
     except Exception:
         traceback.print_exc()
         _log_file.flush()
