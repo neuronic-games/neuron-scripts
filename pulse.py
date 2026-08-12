@@ -96,7 +96,7 @@ def get_uptime():
                 secs = int(float(f.read().split()[0]))
         h, rem = divmod(secs, 3600)
         m, s   = divmod(rem, 60)
-        return f'{h:02d}:{m:02d}:{s:02d}'
+        return f'{h:02d}:{m:02d}'
     except Exception:
         return ''
 
