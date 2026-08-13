@@ -7,7 +7,7 @@ taskkill /IM python.exe /F
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Pull latest scripts from git
-cd /D "%USERPROFILE%\Neuronic\Apps\neuron-scripts"
+cd /D "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts"
 git pull
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -17,15 +17,15 @@ git pull
 :: audit_settings.checkForUpdate is True
 :: e.g. Used for Unity EXEs
 
-python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\archive_update.py"
+python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\archive_update.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Report status into Google Sheet
 
-start /min cmd /c python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\pulse.py"
+start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\pulse.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Run and monitor the app
 
-start /min cmd /c python "%USERPROFILE%\Neuronic\Apps\neuron-scripts\guard.py"
+start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\Apps\neuron-scripts\guard.py"
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
