@@ -156,12 +156,18 @@ def getTasks(name):
         pass
     return ''
 
-def getTaskProcess():
+def getTaskProcess(stop_event):
     import traceback
     try:
-        while True:
+        while not stop_event.is_set():
             res = getTasks(APP_EXE_NAME)
+            if stop_event.is_set():
+                # Quitting was requested while getTasks() was running -
+                # don't act on a now-stale result.
+                break
             if not res:
+                if stop_event.is_set():
+                    break
                 is_chrome = 'Chrome' in APP_EXE_PATH or 'chrome' in APP_EXE_PATH
                 if is_chrome:
                     url = getattr(settings, 'appPath', '')
@@ -191,7 +197,9 @@ def getTaskProcess():
             elif 'Not Responding' in res:
                 print(f'{APP_EXE_NAME} not responding — restarting...')
                 kill_app()
-            time.sleep(25 if not res else 5)
+            # stop_event.wait() (instead of time.sleep()) returns immediately
+            # once quitting is requested, instead of sleeping up to 25s first.
+            stop_event.wait(25 if not res else 5)
     except Exception:
         traceback.print_exc()
 
@@ -201,9 +209,16 @@ def startAllProcess():
         archive_update.checkUpdateStatus()
 
     quit_event = Event()
+    stop_event = Event()
+    task_thread = Thread(target=getTaskProcess, args=(stop_event,), daemon=True)
 
     def on_quit():
         print('Ctrl+Shift+S pressed — quitting...')
+        # Tell the monitor thread to stop *before* killing anything, and
+        # wait for it to actually notice - otherwise it can see the app
+        # missing right after kill_app() and relaunch it before we exit.
+        stop_event.set()
+        task_thread.join(timeout=5)
         restore_desktop()
         kill_app()
         kill_pulse()
@@ -217,7 +232,6 @@ def startAllProcess():
         print(f'Hotkey not available ({e}) — use Ctrl+C to quit.')
         _hotkey_ok = False
 
-    task_thread = Thread(target=getTaskProcess, daemon=True)
     task_thread.start()
 
     try:
