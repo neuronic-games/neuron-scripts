@@ -3,6 +3,7 @@
 
 import wget
 import argparse
+import settings_loader  # must run before `import settings` below
 import settings
 import archive_update
 import os
