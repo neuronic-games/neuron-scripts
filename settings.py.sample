@@ -1,7 +1,9 @@
 # settings.py v1.4
 # TAM (c) Neuronic 2025
 
+import os
 from ctypes.wintypes import RGB
+from user_folders import get_documents_folder
 
 # Define google spreadsheet id and default sheet name for status reports
 sheetID = "1FDmuenqlcFrYcqWEsHem3PApsGxmyf87t_M1nSZmnxQ"
@@ -10,8 +12,14 @@ sheetName = "???" # e.g. CMH
 # Unique exhibit name in Google Sheet
 exhibitName = "???" # e.g. SKELETAL-POP-1
 
-# Folder for apps and app data
-appPath = r'C:/Users/admin/Neuronic/Apps'
+# Folder for apps and app data. Defaults to <Documents>/Neuronic, resolved
+# via the OS's actual Documents-folder lookup (see user_folders.py) so it's
+# correct even if the user has moved/redirected that folder. Override with
+# a literal string here if this deployment needs a different location.
+# NOTE: in Chrome-kiosk mode (appEXEPath/appEXEName pointing at chrome),
+# guard.py reads appPath as the URL to launch instead - override it with
+# that URL in that case, not a folder path.
+appPath = os.path.join(get_documents_folder(), 'Neuronic')
 appName = '???'  # e.g. Skeletal Pop
 
 # Folder for EXE file and its name
