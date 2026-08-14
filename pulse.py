@@ -6,6 +6,7 @@ import os, sys, time, json, socket, platform, subprocess, shutil
 import urllib.request, urllib.parse
 from datetime import datetime, timedelta
 
+import settings_loader  # must run before `import settings` below
 import settings
 
 _IS_WIN = sys.platform == 'win32'

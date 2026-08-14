@@ -30,6 +30,7 @@ import time, subprocess, logging
 from datetime import datetime
 from threading import Thread, Event
 
+import settings_loader  # must run before `import settings` below
 import settings
 import archive_update
 

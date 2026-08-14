@@ -13,6 +13,7 @@
 import os, time
 import wget
 from zipfile import ZipFile
+import settings_loader  # must run before `import settings` below
 import settings
 from os.path import exists
 import shutil
