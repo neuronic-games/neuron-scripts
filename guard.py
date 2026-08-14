@@ -170,7 +170,7 @@ def getTaskProcess(stop_event):
                     break
                 is_chrome = 'Chrome' in APP_EXE_PATH or 'chrome' in APP_EXE_PATH
                 if is_chrome:
-                    url = getattr(settings, 'appPath', '')
+                    url = getattr(settings, 'appURL', '')
                     if _IS_WIN:
                         subprocess.Popen(
                             f'start chrome {url} --start-fullscreen --kiosk '
