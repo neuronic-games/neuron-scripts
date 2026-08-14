@@ -1,38 +1,48 @@
 :: Launcher script with auto restart and logging
 :: (c) Neuronic 2023
 
+@echo off
+
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo ============================================================
+echo  Neuron Launcher
+echo ============================================================
+
 :: Optional parameter: an alternate settings file to use instead of
 :: settings.py, e.g.  launch.cmd settings-edit.py
 :: Captured here (before any cd) so a bare filename resolves relative to
 :: wherever launch.cmd was run from.
 SET "ALT_SETTINGS=%~f1"
 
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Close all previously running python files
-taskkill /IM python.exe /F
+:: Always clear any NEURON_SETTINGS_FILE left over from a previous run in
+:: this same shell session first. Without this, running `launch.cmd
+:: settings-edit.py` once and then plain `launch.cmd` later in the same
+:: window would silently keep reusing settings-edit.py instead of falling
+:: back to settings.py.
+SET "NEURON_SETTINGS_FILE="
 
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Pull latest scripts from git
-cd /D "%USERPROFILE%\Documents\Neuronic\neuron-scripts"
-git pull
-
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: If an alternate settings file was passed in, point NEURON_SETTINGS_FILE at
-:: it instead of copying anything over settings.py. settings_loader.py (which
-:: every script imports before `import settings`) reads this env var and
-:: loads that file as the "settings" module for this run only - settings.py
-:: itself is never touched. python/start below inherit this since they're
-:: child processes of this same cmd session.
-IF NOT "%ALT_SETTINGS%"=="" (
+IF "%ALT_SETTINGS%"=="" (
+    echo Settings file: settings.py [default]
+) ELSE (
     IF EXIST "%ALT_SETTINGS%" (
-        echo Using settings file: %ALT_SETTINGS%
+        echo Settings file: %ALT_SETTINGS%
         SET "NEURON_SETTINGS_FILE=%ALT_SETTINGS%"
     ) ELSE (
         echo WARNING: settings file not found: %ALT_SETTINGS%
-        echo Falling back to the existing settings.py
+        echo Falling back to settings.py [default]
     )
 )
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo.
+echo Stopping any previously running python.exe processes...
+taskkill /IM python.exe /F
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo.
+echo Pulling latest scripts from git...
+cd /D "%USERPROFILE%\Documents\Neuronic\neuron-scripts"
+git pull
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: COMMENT & UNCOMMENT BELOW SCRIPTS BASED ON THE APP FUNCTIONALITIES
@@ -41,15 +51,26 @@ IF NOT "%ALT_SETTINGS%"=="" (
 :: audit_settings.checkForUpdate is True
 :: e.g. Used for Unity EXEs
 
+echo.
+echo Checking for app archive updates...
 python "%USERPROFILE%\Documents\Neuronic\neuron-scripts\archive_update.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Report status into Google Sheet
 
+echo.
+echo Starting pulse monitor (status reports)...
 start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\neuron-scripts\pulse.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Run and monitor the app
 
+echo.
+echo Starting guard (app monitor / kiosk lockdown)...
 start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\neuron-scripts\guard.py"
+
+echo.
+echo ============================================================
+echo  Launch complete. Press Ctrl+Shift+S in the app to quit.
+echo ============================================================
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
