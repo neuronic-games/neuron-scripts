@@ -16,15 +16,16 @@ exhibitName = "???" # e.g. SKELETAL-POP-1
 # via the OS's actual Documents-folder lookup (see user_folders.py) so it's
 # correct even if the user has moved/redirected that folder. Override with
 # a literal string here if this deployment needs a different location.
-# NOTE: in Chrome-kiosk mode (appEXEPath/appEXEName pointing at chrome),
-# guard.py reads appPath as the URL to launch instead - override it with
-# that URL in that case, not a folder path.
 appPath = os.path.join(get_documents_folder(), 'Neuronic')
 appName = '???'  # e.g. Skeletal Pop
 
 # Folder for EXE file and its name
 appEXEPath = r'C:/Program Files/Google/Chrome/Application' # e.g. r'C:/Users/admin/Neuronic/Apps/Skeletal Pop/Skeletal Pop Win'
 appEXEName = 'chrome.exe' # e.g. skeletal-pop.exe
+
+# URL to launch in kiosk mode when appEXEPath/appEXEName point at Chrome
+# (i.e. is_chrome is True in guard.py). Not used otherwise.
+appURL = "https://www.neuronicgames.com"
 
 # Parameters for the EXE or URL for web browser
 appParams = "https://www.neuronicgames.com"
