@@ -69,6 +69,18 @@ echo.
 echo Starting guard (app monitor / kiosk lockdown)...
 start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\neuron-scripts\guard.py"
 
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Power-cycles the webcam's USB hub port and toggles it in OBS, so exhibits
+:: with a webcam that doesn't reconnect on its own don't need a physical
+:: unplug/replug after every boot. Runs detached and waits on its own for
+:: OBS's WebSocket server to come up, so it doesn't hold up this script.
+:: No-op / harmless for deployments without a webcam or hub - it just logs
+:: a connection failure to reset_camera.log if OBS isn't running.
+
+echo.
+echo Starting camera reset (USB power-cycle + OBS reconnect)...
+start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\neuron-scripts\reset_camera.py"
+
 echo.
 echo ============================================================
 echo  Launch complete. Press Ctrl+Shift+S in the app to quit.
