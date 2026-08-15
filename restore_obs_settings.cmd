@@ -42,7 +42,19 @@ if "%SILENT%"=="0" (
 
 echo.
 echo Closing OBS if it's running...
-taskkill /IM obs64.exe /F >nul 2>&1
+:: Try a graceful close first (no /F) so OBS runs its normal exit/save path
+:: (which is also what writes saved projector state) instead of being
+:: ambushed mid-session. Only force-kill as a fallback if it won't close.
+tasklist /FI "IMAGENAME eq obs64.exe" 2>nul | find /I "obs64.exe" >nul
+if not errorlevel 1 (
+    taskkill /IM obs64.exe >nul 2>&1
+    timeout /t 5 /nobreak >nul
+    tasklist /FI "IMAGENAME eq obs64.exe" 2>nul | find /I "obs64.exe" >nul
+    if not errorlevel 1 (
+        echo OBS did not close in time - forcing it closed.
+        taskkill /IM obs64.exe /F >nul 2>&1
+    )
+)
 
 if not exist "%DEST%" mkdir "%DEST%"
 
