@@ -28,3 +28,13 @@ if exist "%OBS_SETTINGS%\.sentinel" rmdir /s /q "%OBS_SETTINGS%\.sentinel"
 pushd "C:\Program Files\obs-studio\bin\64bit"
 start "" "obs64.exe" --startvirtualcam
 popd
+
+:: Open the Program projector ourselves, once OBS is actually ready, via
+:: open_projector.py - works around a long-standing OBS bug where a
+:: projector restored natively via "Save projectors on exit" opens before
+:: OBS renders its first frame and gets stuck on a black screen. Runs
+:: detached (start "") so it doesn't hold up this script; it does its own
+:: waiting for OBS's WebSocket server to come up.
+:: NOTE: turn OFF "Save projectors on exit" in OBS (Settings > General >
+:: Projectors) so OBS doesn't also open its own stuck/black projector.
+start "" python "%~dp0open_projector.py"
