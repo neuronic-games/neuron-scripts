@@ -38,3 +38,24 @@ checkForUpdate = False
 
 # The name for the crash log
 crashPath = "crash.log"
+
+# --- OBS / camera settings (used by open_projector.py and reset_camera.py) ---
+# OBS WebSocket connection (Tools > WebSocket Server Settings in OBS)
+obsHost = "127.0.0.1"
+obsPort = 4455
+obsPassword = ""
+
+# Which monitor (0-indexed, per OBS's own GetMonitorList) to open the
+# Program projector fullscreen on
+obsProjectorMonitor = 2
+
+# Exact name of the webcam source in OBS
+cameraSource = "Integrated Webcam"
+
+# StarTech managed USB hub settings, used by reset_camera.py to power-cycle
+# the camera's port. Run `CUSBC /Q` to find the COM port, and `CUSBC
+# /G:COMn` to see port status and confirm which port number the camera is
+# plugged into.
+cameraHubComPort = ""  # e.g. "COM3" - REQUIRED, reset_camera.py no-ops without it
+cameraHubPort = "1"
+cameraHubCusbcPath = "CUSBC"  # full path to CUSBC.exe if its folder isn't on PATH

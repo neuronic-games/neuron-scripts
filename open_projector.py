@@ -22,7 +22,11 @@ script - check that file to see what actually happened on a given run.
 
 Requires: pip install obsws-python
 Requires OBS's WebSocket server to be enabled (Tools > WebSocket Server
-Settings in OBS), with OBS_PASSWORD set below if it has one configured.
+Settings in OBS), with settings.obsPassword set if it has one configured.
+
+Connection/projector settings (obsHost, obsPort, obsPassword,
+obsProjectorMonitor) come from settings.py - that's the file to edit per
+deployment, not this script.
 """
 
 from __future__ import annotations
@@ -32,6 +36,9 @@ import os
 import time
 
 import obsws_python as obs
+
+import settings_loader  # must run before `import settings` below
+import settings
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _LOG_FILE = os.path.join(_SCRIPT_DIR, "open_projector.log")
@@ -43,14 +50,14 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-HOST = os.getenv("OBS_HOST", "127.0.0.1")
-PORT = int(os.getenv("OBS_PORT", "4455"))
-PASSWORD = os.getenv("OBS_PASSWORD", "")
+HOST = getattr(settings, "obsHost", "127.0.0.1")
+PORT = int(getattr(settings, "obsPort", 4455))
+PASSWORD = getattr(settings, "obsPassword", "")
 
 # --- Projector ---
 # Which monitor (0-indexed, per OBS's own GetMonitorList) to open the
 # projector fullscreen on. "Program" = the final mixed output.
-MONITOR_INDEX = int(os.getenv("OBS_PROJECTOR_MONITOR", "2"))
+MONITOR_INDEX = int(getattr(settings, "obsProjectorMonitor", 2))
 VIDEO_MIX_TYPE = "OBS_WEBSOCKET_VIDEO_MIX_TYPE_PROGRAM"
 
 CONNECT_TIMEOUT_SEC = 60       # give up after this long waiting for OBS
