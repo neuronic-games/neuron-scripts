@@ -14,10 +14,11 @@ command-line tool used here to power-cycle a specific port.
 Before relying on this script:
   1. Run `CUSBC /Q` manually to find which COM port the hub enumerated as,
      and confirm which port number the camera is plugged into.
-  2. Set HUB_COM_PORT and HUB_CAMERA_PORT below (or via environment
-     variables) to those values.
-  3. If CUSBC.exe's install folder isn't on your PATH, set CUSBC_PATH to
-     its full path.
+  2. Set settings.cameraHubComPort and settings.cameraHubPort in
+     settings.py to those values (that's the file to edit per deployment,
+     not this script).
+  3. If CUSBC.exe's install folder isn't on PATH, set
+     settings.cameraHubCusbcPath to its full path.
   4. Confirm `CUSBC /S:COMn 0:<port>` then `1:<port>` actually revives the
      camera before trusting this script - StarTech's docs describe this
      as port enable/disable, not explicitly a guaranteed true power cut.
@@ -25,7 +26,7 @@ Before relying on this script:
 --- OBS step ---
 Requires: pip install obsws-python
 Requires OBS's WebSocket server enabled (Tools > WebSocket Server Settings
-in OBS), with OBS_PASSWORD set below if it has one configured.
+in OBS), with settings.obsPassword set if it has one configured.
 
 Everything is logged to reset_camera.log next to this script.
 """
@@ -39,6 +40,9 @@ import time
 
 import obsws_python as obs
 
+import settings_loader  # must run before `import settings` below
+import settings
+
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _LOG_FILE = os.path.join(_SCRIPT_DIR, "reset_camera.log")
 
@@ -49,25 +53,25 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# --- StarTech hub settings ---
+# --- StarTech hub settings (from settings.py) ---
 # Full path to CUSBC.exe. Leave as "CUSBC" if its install folder is on PATH.
-CUSBC_PATH = os.getenv("CUSBC_PATH", "CUSBC")
+CUSBC_PATH = getattr(settings, "cameraHubCusbcPath", "CUSBC")
 # COM port the hub enumerates as - find via `CUSBC /Q`. MUST be set before
 # this script will do anything (see module docstring).
-HUB_COM_PORT = os.getenv("HUB_COM_PORT", "")
+HUB_COM_PORT = getattr(settings, "cameraHubComPort", "")
 # Which hub port the camera is plugged into (per CUSBC /Q output).
-HUB_CAMERA_PORT = os.getenv("HUB_CAMERA_PORT", "1")
+HUB_CAMERA_PORT = getattr(settings, "cameraHubPort", "1")
 # How long to leave the port powered off before restoring it.
 HUB_POWER_OFF_SEC = int(os.getenv("HUB_POWER_OFF_SEC", "3"))
 # Extra time to let Windows re-enumerate the device after power is restored,
 # before OBS tries to touch it.
 POST_POWER_ON_SETTLE_SEC = int(os.getenv("POST_POWER_ON_SETTLE_SEC", "5"))
 
-# --- OBS settings ---
-HOST = os.getenv("OBS_HOST", "127.0.0.1")
-PORT = int(os.getenv("OBS_PORT", "4455"))
-PASSWORD = os.getenv("OBS_PASSWORD", "")
-CAMERA_NAME = os.getenv("OBS_CAMERA_SOURCE", "Integrated Webcam")
+# --- OBS settings (from settings.py) ---
+HOST = getattr(settings, "obsHost", "127.0.0.1")
+PORT = int(getattr(settings, "obsPort", 4455))
+PASSWORD = getattr(settings, "obsPassword", "")
+CAMERA_NAME = getattr(settings, "cameraSource", "Integrated Webcam")
 CAMERA_TOGGLE_OFF_SEC = 1
 OBS_CONNECT_TIMEOUT_SEC = 30
 OBS_CONNECT_RETRY_DELAY_SEC = 2
