@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 """Reset the webcam by power-cycling its USB port on a StarTech managed
-hub, then toggling it in OBS - reproduces the confirmed-working manual fix
-(physical unplug/replug, then OBS Deactivate/Activate) entirely from
-software. Standalone/independent of open_projector.py - run this on its
-own, e.g. manually when the camera's dead, or from a monitoring script
-later.
+hub, then toggling it in OBS a few times - reproduces the confirmed-working
+manual fix (physical unplug/replug, then a couple of OBS Deactivate/
+Activate passes) entirely from software. Standalone/independent of
+open_projector.py - run this on its own, e.g. manually when the camera's
+dead, or from a monitoring script later.
 
 --- Hardware step ---
 Requires a StarTech managed USB hub (5G4AINDRM-USB-A-HUB) with its
@@ -61,7 +61,7 @@ HUB_CAMERA_PORT = os.getenv("HUB_CAMERA_PORT", "1")
 HUB_POWER_OFF_SEC = int(os.getenv("HUB_POWER_OFF_SEC", "3"))
 # Extra time to let Windows re-enumerate the device after power is restored,
 # before OBS tries to touch it.
-POST_POWER_ON_SETTLE_SEC = int(os.getenv("POST_POWER_ON_SETTLE_SEC", "3"))
+POST_POWER_ON_SETTLE_SEC = int(os.getenv("POST_POWER_ON_SETTLE_SEC", "5"))
 
 # --- OBS settings ---
 HOST = os.getenv("OBS_HOST", "127.0.0.1")
@@ -71,6 +71,12 @@ CAMERA_NAME = os.getenv("OBS_CAMERA_SOURCE", "Integrated Webcam")
 CAMERA_TOGGLE_OFF_SEC = 1
 OBS_CONNECT_TIMEOUT_SEC = 30
 OBS_CONNECT_RETRY_DELAY_SEC = 2
+# A single off/on toggle right after a power-on isn't always enough - in
+# testing the camera sometimes needed a couple of Deactivate/Activate
+# passes in OBS before it actually started producing video. Retry the
+# toggle a few times with a gap between attempts to reproduce that.
+CAMERA_TOGGLE_ATTEMPTS = int(os.getenv("CAMERA_TOGGLE_ATTEMPTS", "3"))
+CAMERA_TOGGLE_RETRY_INTERVAL_SEC = int(os.getenv("CAMERA_TOGGLE_RETRY_INTERVAL_SEC", "5"))
 
 
 def run_cusbc(*args: str) -> str:
@@ -132,10 +138,17 @@ def toggle_camera_in_obs() -> None:
         log.warning("Could not find source '%s' in scene '%s': %s", CAMERA_NAME, scene_name, e)
         return
 
-    log.info("Toggling '%s' (scene item %s) off/on in OBS...", CAMERA_NAME, item_id)
-    client.set_scene_item_enabled(scene_name, item_id, False)
-    time.sleep(CAMERA_TOGGLE_OFF_SEC)
-    client.set_scene_item_enabled(scene_name, item_id, True)
+    for attempt in range(1, CAMERA_TOGGLE_ATTEMPTS + 1):
+        log.info(
+            "Toggling '%s' (scene item %s) off/on in OBS (attempt %d/%d)...",
+            CAMERA_NAME, item_id, attempt, CAMERA_TOGGLE_ATTEMPTS,
+        )
+        client.set_scene_item_enabled(scene_name, item_id, False)
+        time.sleep(CAMERA_TOGGLE_OFF_SEC)
+        client.set_scene_item_enabled(scene_name, item_id, True)
+
+        if attempt < CAMERA_TOGGLE_ATTEMPTS:
+            time.sleep(CAMERA_TOGGLE_RETRY_INTERVAL_SEC)
 
 
 def main() -> None:
