@@ -30,9 +30,10 @@ start "" "obs64.exe" --startvirtualcam
 popd
 
 :: Once OBS is actually ready, open_projector.py opens the Program
-:: projector and nudges the webcam source to reconnect - two separate
-:: workarounds for OBS startup race conditions (see the file's docstring
-:: for details/required OBS setting changes). Runs detached (start "") so
-:: it doesn't hold up this script; it does its own waiting for OBS's
-:: WebSocket server to come up.
+:: projector itself - a workaround for an OBS startup race condition (see
+:: the file's docstring for details/required OBS setting changes). Runs
+:: detached (start "") so it doesn't hold up this script; it does its own
+:: waiting for OBS's WebSocket server to come up.
+:: Camera reset (USB power-cycle + OBS reconnect) is handled separately by
+:: reset_camera.py, run from launch.cmd - not from here.
 start "" python "%~dp0open_projector.py"
