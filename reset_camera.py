@@ -62,7 +62,7 @@ HUB_COM_PORT = getattr(settings, "cameraHubComPort", "")
 # Which hub port the camera is plugged into (per CUSBC /Q output).
 HUB_CAMERA_PORT = getattr(settings, "cameraHubPort", "1")
 # How long to leave the port powered off before restoring it.
-HUB_POWER_OFF_SEC = int(os.getenv("HUB_POWER_OFF_SEC", "3"))
+HUB_POWER_OFF_SEC = int(getattr(settings, "cameraHubPowerOffSec", 5))
 # Extra time to let Windows re-enumerate the device after power is restored,
 # before OBS tries to touch it.
 POST_POWER_ON_SETTLE_SEC = int(os.getenv("POST_POWER_ON_SETTLE_SEC", "5"))
