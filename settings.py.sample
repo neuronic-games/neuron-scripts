@@ -59,3 +59,6 @@ cameraSource = "Integrated Webcam"
 cameraHubComPort = ""  # e.g. "COM3" - REQUIRED, reset_camera.py no-ops without it
 cameraHubPort = "1"
 cameraHubCusbcPath = "CUSBC"  # full path to CUSBC.exe if its folder isn't on PATH
+
+# How long to leave the camera's hub port powered off before restoring it
+cameraHubPowerOffSec = 5
