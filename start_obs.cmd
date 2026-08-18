@@ -26,7 +26,7 @@ if exist "%OBS_SETTINGS%\.sentinel" rmdir /s /q "%OBS_SETTINGS%\.sentinel"
 :: shortcut. pushd/popd instead of cd, so the caller's current directory is
 :: restored afterward instead of being left inside OBS's bin folder.
 pushd "C:\Program Files\obs-studio\bin\64bit"
-start "" "obs64.exe" --startvirtualcam
+start "" "obs64.exe" --startvirtualcam --disable-shutdown-check
 popd
 
 :: Once OBS is actually ready, open_projector.py opens the Program
