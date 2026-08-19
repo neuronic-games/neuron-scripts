@@ -1,7 +1,7 @@
 # CSV audit log of sent emails: date/time, recipient address, attachment
 # size, and whether the send succeeded (with the error if it didn't).
 #
-# Enable by setting settings_email.mail_log_folder to a folder path; leave
+# Enable by setting settings.mail_log_folder to a folder path; leave
 # it "" to disable. A single mail_log.csv file in that folder is appended
 # to (with a header row written the first time), one row per send attempt
 # (both successes and failures are logged).
@@ -10,21 +10,22 @@ import csv
 import os
 import logging
 from datetime import datetime
-import settings_email
+import settings_loader  # must run before `import settings` below
+import settings
 
 _LOG_FILENAME = "mail_log.csv"
 
 
 def log_sent(to_addr, attachment_size=None, success=True, error=None):
     """Call once per send attempt (success or failure). No-op unless
-    settings_email.mail_log_folder is set.
+    settings.mail_log_folder is set.
 
     attachment_size: size of the attachment in bytes, or None if there
         wasn't one.
     success: whether the send succeeded.
     error: the error message, if success is False.
     """
-    folder = getattr(settings_email, "mail_log_folder", "")
+    folder = getattr(settings, "mail_log_folder", "")
     if not folder:
         return
 

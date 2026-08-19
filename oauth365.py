@@ -22,7 +22,7 @@
 #   3. Exchange admin center > the mailbox > make sure "Authenticated SMTP"
 #        (SMTP AUTH) is enabled for that mailbox.
 #   4. Put the app's Application (client) ID and Directory (tenant) ID
-#        into settings_email.py.
+#        into settings.py.
 #
 # Requires: pip install msal
 
