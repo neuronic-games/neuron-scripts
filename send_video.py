@@ -7,9 +7,14 @@ Usage:
 Builds:  {INTRO}\\{number}.mp4 + {video_file} + {OUTRO}\\{number}.mp4
 Saves to: {OUTPUT}\\<YYYY-MM-DD-HH-MM>.mp4
 
-Requires ffmpeg. This script uses stream-copy (-c copy), which is fast but
-requires the intro, recording, and outro to share the same codec,
-resolution, and frame rate.
+Requires ffmpeg. Re-encodes (H.264/AAC) rather than stream-copying, so the
+intro/recording/outro don't need matching codecs, resolution, or frame
+rate, and the output doesn't inherit any keyframe/timestamp mismatches at
+the clip boundaries that stream-copy concat is prone to (this was
+previously -c copy, which is faster but produced files that played back
+broken/hung in some players when the source clips weren't
+frame-for-frame identical in encoding). -movflags +faststart also moves
+the MP4 index to the front of the file for reliable playback start.
 
 Folder paths and ffmpeg location come from settings.py: introDir, outroDir,
 videoOutputDir, ffmpegPath.
@@ -29,14 +34,9 @@ INTRO_DIR = Path(settings.introDir)
 OUTRO_DIR = Path(settings.outroDir)
 OUTPUT_DIR = Path(settings.videoOutputDir)
 FFMPEG_PATH = getattr(settings, "ffmpegPath", "ffmpeg")
-
-
-def build_concat_file(list_path: Path, clips: list[Path]) -> None:
-    lines = []
-    for clip in clips:
-        escaped = clip.as_posix().replace("'", "'\\''")
-        lines.append(f"file '{escaped}'")
-    list_path.write_text("\n".join(lines), encoding="utf-8")
+TARGET_WIDTH = int(getattr(settings, "videoTargetWidth", 1280))
+TARGET_HEIGHT = int(getattr(settings, "videoTargetHeight", 720))
+TARGET_FPS = int(getattr(settings, "videoTargetFps", 30))
 
 
 def main(argv: list[str]) -> int:
@@ -55,17 +55,53 @@ def main(argv: list[str]) -> int:
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
     output = OUTPUT_DIR / f"{timestamp}.mp4"
 
-    list_file = OUTPUT_DIR / f"_concat_{timestamp}.txt"
-    build_concat_file(list_file, [intro, video, outro])
+    # concat *filter* (not the -f concat demuxer) - this decodes each clip
+    # independently before joining them, so intro/recording/outro can have
+    # different codecs, resolutions, or frame rates. The demuxer approach
+    # only works when every input already shares the same codec; mixing
+    # codecs through it produces corrupt/unplayable output even with
+    # re-encoding enabled, since it works at the raw byte/packet level
+    # rather than decoding first.
+    #
+    # The concat filter itself still requires every video input to already
+    # be the same frame size/rate, so each clip is first scaled to fit
+    # within TARGET_WIDTH x TARGET_HEIGHT (letterboxed with black bars,
+    # never stretched/cropped) and normalized to TARGET_FPS, and each
+    # audio track is resampled to a common format, before joining. Each
+    # clip needs both a video and an audio stream (v=1:a=1) - a silent
+    # intro/outro still needs a (silent) audio track.
+    per_clip_filters = []
+    concat_inputs = []
+    for i in range(3):
+        per_clip_filters.append(
+            f"[{i}:v:0]scale={TARGET_WIDTH}:{TARGET_HEIGHT}:force_original_aspect_ratio=decrease,"
+            f"pad={TARGET_WIDTH}:{TARGET_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=black,"
+            f"setsar=1,fps={TARGET_FPS}[v{i}]"
+        )
+        per_clip_filters.append(
+            f"[{i}:a:0]aformat=sample_rates=44100:channel_layouts=stereo[a{i}]"
+        )
+        concat_inputs.append(f"[v{i}][a{i}]")
+
+    filter_complex = ";".join(per_clip_filters)
+    filter_complex += f";{''.join(concat_inputs)}concat=n=3:v=1:a=1[outv][outa]"
 
     try:
         subprocess.run(
             [
                 FFMPEG_PATH,
-                "-f", "concat",
-                "-safe", "0",
-                "-i", str(list_file),
-                "-c", "copy",
+                "-i", str(intro),
+                "-i", str(video),
+                "-i", str(outro),
+                "-filter_complex", filter_complex,
+                "-map", "[outv]",
+                "-map", "[outa]",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "18",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-movflags", "+faststart",
                 str(output),
             ],
             check=True,
@@ -74,8 +110,6 @@ def main(argv: list[str]) -> int:
         )
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"ffmpeg failed: {exc.stderr}") from exc
-    finally:
-        list_file.unlink(missing_ok=True)
 
     print(str(output))
     return 0
