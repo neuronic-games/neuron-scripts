@@ -3,8 +3,13 @@
 hub, then toggling it in OBS a few times - reproduces the confirmed-working
 manual fix (physical unplug/replug, then a couple of OBS Deactivate/
 Activate passes) entirely from software. Standalone/independent of
-open_projector.py - run this on its own, e.g. manually when the camera's
-dead, or from a monitoring script later.
+open_projector.py.
+
+Run automatically from start_obs.cmd every time OBS starts, gated by
+settings.resetCameraOnStart (a no-op that just logs and exits when False -
+harmless to always call from start_obs.cmd regardless of whether a given
+deployment has a camera/hub at all). Can also be run manually on its own,
+e.g. when the camera's dead outside of a fresh OBS launch.
 
 --- Hardware step ---
 Requires a StarTech managed USB hub (5G4AINDRM-USB-A-HUB) with its
@@ -22,6 +27,11 @@ Before relying on this script:
   4. Confirm `CUSBC /S:COMn 0:<port>` then `1:<port>` actually revives the
      camera before trusting this script - StarTech's docs describe this
      as port enable/disable, not explicitly a guaranteed true power cut.
+     CONFIRMED on the 5G4AINDRM-USB-A-HUB: only port 1 does a real VBUS
+     power cut (verified via Device Manager - the camera actually
+     disappears/reappears there). Other ports only disable the data
+     lines, which does NOT reset the camera's firmware and will not fix
+     an ELP-style enumeration issue. Use port 1 on that hub model.
 
 --- OBS step ---
 Requires: pip install obsws-python
@@ -157,6 +167,11 @@ def toggle_camera_in_obs() -> None:
 
 def main() -> None:
     log.info("=== reset_camera.py starting ===")
+
+    if not getattr(settings, "resetCameraOnStart", False):
+        log.info("settings.resetCameraOnStart is False - nothing to do.")
+        return
+
     power_cycle_camera_port()
     toggle_camera_in_obs()
     log.info("Done.")

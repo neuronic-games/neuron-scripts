@@ -1,4 +1,4 @@
-# Sends email via Office 365, Gmail, or GreenGeeks - see settings_email.py
+# Sends email via Office 365, Gmail, or GreenGeeks - see settings.py
 # to pick the provider and fill in its credentials.
 # Requires: pip install msal
 
@@ -9,7 +9,9 @@ from email.mime.base import MIMEBase
 from email.encoders import encode_base64
 import os
 import sys
-import settings_email
+
+import settings_loader  # must run before `import settings` below
+import settings
 import mail_auth
 import mail_stats
 import mail_log
@@ -21,12 +23,12 @@ if len(sys.argv) < 2:
 
 receiver_email = sys.argv[1]
 attachment_arg = sys.argv[2] if len(sys.argv) > 2 else None
-msg_html = settings_email.message
+msg_html = settings.message
 
 def send_email_with_attachment(to_addr, attachment_file = None):
     msg = MIMEMultipart()
-    msg['Subject'] = settings_email.subject
-    msg['From'] = settings_email.sender_email
+    msg['Subject'] = settings.subject
+    msg['From'] = settings.sender_email
     msg['To'] = to_addr
 
     part2 = MIMEText(msg_html, 'html')
@@ -48,7 +50,7 @@ def send_email_with_attachment(to_addr, attachment_file = None):
 
     try:
         server = mail_auth.connect()
-        server.sendmail(settings_email.sender_email, to_addr, msg.as_string())
+        server.sendmail(settings.sender_email, to_addr, msg.as_string())
         server.quit()
     except Exception as e:
         mail_log.log_sent(to_addr, attachment_size=attachment_size, success=False, error=str(e))
@@ -70,7 +72,7 @@ finally:
     print ("Done")
 
 # If a full calendar day's worth of sends hasn't been reported yet, email
-# the daily stats now (no-op unless settings_email.send_daily_test_mail_to
+# the daily stats now (no-op unless settings.send_daily_test_mail_to
 # is set and a day boundary has actually passed).
 try:
     mail_stats.send_daily_report_if_due()

@@ -5,7 +5,7 @@ Two scripts send email through the same shared configuration and auth layer:
 - **`send_email.py`** — sends a single test email to the address hardcoded at the top of the file.
 - **`send_email_bulk.py`** — watches a folder for `.csv` files (each naming a recipient + an attachment), emails them out, then deletes the processed files. Runs continuously and is meant to run unattended on Windows.
 
-All configuration — provider choice, credentials, subject/message, folders — lives in **`settings_email.py`**, separate from `settings.py` (which holds this machine's kiosk/guard/pulse settings and is unrelated). `settings_email.py` is gitignored (so real credentials never get committed); `settings_email.py.sample` is the checked-in template to copy from on a fresh install.
+All configuration — provider choice, credentials, subject/message, folders — lives in **`settings.py`**, alongside this machine's kiosk/guard/pulse/OBS settings. `settings.py` is gitignored (so real credentials never get committed); `settings.py.sample` is the checked-in template to copy from on a fresh install.
 
 Shared support files (you shouldn't need to edit these):
 
@@ -24,7 +24,7 @@ pip install msal
 
 ## 1. Choose a provider
 
-Open `settings_email.py` and set:
+Open `settings.py` and set:
 
 ```python
 provider = "office365"   # or "gmail", or "greengeeks"
@@ -49,7 +49,7 @@ Requires MFA-compatible OAuth2 (Microsoft no longer accepts plain passwords for 
 2. **API permissions → Add a permission → APIs my organization uses → "Office 365 Exchange Online" → Delegated permissions → `SMTP.Send`**
    (grant admin consent if your tenant requires it)
 3. **Exchange admin center** → the mailbox → confirm **"Authenticated SMTP"** is enabled.
-4. Copy the app's *Application (client) ID* and *Directory (tenant) ID* into `settings_email.py`:
+4. Copy the app's *Application (client) ID* and *Directory (tenant) ID* into `settings.py`:
 
 ```python
 tenant_id = "..."
@@ -64,7 +64,7 @@ Google no longer accepts your regular account password for SMTP. Instead:
 
 1. Turn on **2-Step Verification** on the Google account, if it isn't already.
 2. Generate an app password at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
-3. Paste it into `settings_email.py`:
+3. Paste it into `settings.py`:
 
 ```python
 gmail_app_password = "xxxx xxxx xxxx xxxx"   # spaces don't matter
@@ -86,7 +86,7 @@ greengeeks_password = "..."
 
 ## 2. Set the message content
 
-Still in `settings_email.py`:
+Still in `settings.py`:
 
 ```python
 subject = "..."
@@ -108,7 +108,7 @@ folder = r'C:\path\to\watch'   # folder monitored for CSV files, and where attac
 
 ## 3. (Optional) Daily send-count report
 
-Set `send_daily_test_mail_to` in `settings_email.py` to have a summary email sent automatically once each calendar day finishes, reporting how many emails were sent that day (including 0, on quiet days):
+Set `send_daily_test_mail_to` in `settings.py` to have a summary email sent automatically once each calendar day finishes, reporting how many emails were sent that day (including 0, on quiet days):
 
 ```python
 send_daily_test_mail_to = "you@example.com"   # leave "" to disable
@@ -118,7 +118,7 @@ This works best with `send_email_bulk.py`, since it's the long-running process �
 
 ## 4. (Optional) Sent-mail CSV log
 
-Set `mail_log_folder` in `settings_email.py` to have every send attempt appended as a row to `mail_log.csv` in that folder (header row written automatically the first time):
+Set `mail_log_folder` in `settings.py` to have every send attempt appended as a row to `mail_log.csv` in that folder (header row written automatically the first time):
 
 ```python
 mail_log_folder = r'C:\path\to\log'   # leave "" to disable
@@ -144,7 +144,7 @@ It sends one email (with an optional attachment argument to `send_email_with_att
 python send_email_bulk.py
 ```
 
-It watches `settings_email.folder` for `*.csv` files. Each CSV should have one row per file:
+It watches `settings.folder` for `*.csv` files. Each CSV should have one row per file:
 
 ```
 recipient@example.com,attachment_filename.ext
@@ -158,8 +158,8 @@ Because this runs unattended, run it interactively once after setup (before it h
 
 - `msal_token_cache.bin` (Office 365 only) holds your cached login — don't share or commit it. Delete it to force a fresh interactive login.
 - Switching `provider` at any time re-routes both scripts to the new service; no other code changes needed.
-- `smtp_host` / `smtp_port` in `settings_email.py` are optional overrides — leave blank to use each provider's default (Office 365 and Gmail already have sensible defaults; GreenGeeks requires `smtp_host` to be set explicitly).
+- `smtp_host` / `smtp_port` in `settings.py` are optional overrides — leave blank to use each provider's default (Office 365 and Gmail already have sensible defaults; GreenGeeks requires `smtp_host` to be set explicitly).
 - `mail_stats.json` holds the send counts behind the daily report. Delete it to reset counters; safe to do any time.
-- `settings_email.py` is separate from `settings.py` (used by `guard.py`/`pulse.py` for kiosk monitoring) — the two aren't related, so email config never touches kiosk config or vice versa.
+- Email config lives in the same `settings.py` used by `guard.py`/`pulse.py`/`open_projector.py`/`reset_camera.py` for kiosk/OBS monitoring — one file per deployment, loaded the same way everywhere (including the `NEURON_SETTINGS_FILE` alternate-file override from `launch.cmd`).
 - If `mail_log_folder` isn't writable, the send itself still succeeds — a warning is just logged and the CSV write is skipped.
 - While wiring up success/failure logging in `send_email_bulk.py`, fixed two pre-existing bugs it depended on: a typo (`Encoders.encode_base64` → `encoders.encode_base64`) that crashed any attachment send, and `send_email_with_attachment` unconditionally returning `True` even when sending failed (which caused `open_csv_and_send_mail` to treat failed sends as successful).

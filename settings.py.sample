@@ -52,13 +52,117 @@ obsProjectorMonitor = 2
 # Exact name of the webcam source in OBS
 cameraSource = "Integrated Webcam"
 
+# Whether start_obs.cmd runs reset_camera.py (USB power-cycle + OBS
+# reconnect) automatically every time OBS starts. Leave False for
+# deployments with no webcam, or one that connects reliably on its own -
+# reset_camera.py is a no-op when this is False either way, so this is
+# mainly about avoiding a pointless log entry/delay on every OBS launch.
+# Set True once cameraHubComPort/cameraHubPort below are configured and
+# confirmed working.
+resetCameraOnStart = False
+
 # StarTech managed USB hub settings, used by reset_camera.py to power-cycle
 # the camera's port. Run `CUSBC /Q` to find the COM port, and `CUSBC
 # /G:COMn` to see port status and confirm which port number the camera is
 # plugged into.
+#
+# IMPORTANT: on the StarTech 5G4AINDRM-USB-A-HUB, confirmed by testing that
+# only port 1 does a true VBUS power cut - the other ports only disable the
+# data lines (a soft disconnect), which does NOT reset a camera's firmware
+# the way an actual unplug/replug does. Confirmed via Device Manager: on
+# port 1, the device fully disappears and reappears; on other ports it
+# stayed listed the whole time. Plug the camera into port 1. If you're
+# using a different hub model/unit, re-verify this per-port behavior
+# yourself before trusting it (see reset_camera.py's docstring).
 cameraHubComPort = ""  # e.g. "COM3" - REQUIRED, reset_camera.py no-ops without it
-cameraHubPort = "1"
+cameraHubPort = "1"    # use port 1 - see note above
 cameraHubCusbcPath = "CUSBC"  # full path to CUSBC.exe if its folder isn't on PATH
 
 # How long to leave the camera's hub port powered off before restoring it
 cameraHubPowerOffSec = 5
+
+# ============================================================================
+# Email sending settings (send_email.py / send_email_bulk.py)
+# ============================================================================
+
+# --- Which email provider to use: "office365", "gmail", or "greengeeks" ---
+provider = "office365"
+
+sender_name = ""    # <smtp-sender-name>
+sender_email = ""   # <smtp-email-address>
+
+# --- Optional manual SMTP host/port override ---
+# Leave blank to use each provider's default. Required for "greengeeks"
+# (there is no universal GreenGeeks hostname - see below).
+smtp_host = ""
+smtp_port = None
+
+# --- Office 365 settings (only needed if provider == "office365") ---
+# OAuth2 / Modern Auth is required for MFA-enabled accounts.
+# See the setup steps at the top of oauth365.py for how to get these values.
+tenant_id = ""  # <Azure AD / Entra ID tenant ID>
+client_id = ""  # <Azure AD app registration's Application (client) ID>
+scopes = ["https://outlook.office365.com/SMTP.Send"]
+
+# --- Gmail settings (only needed if provider == "gmail") ---
+# Requires 2-Step Verification to be turned on for the account. Then
+# create an app password at https://myaccount.google.com/apppasswords
+# and paste the 16-character password below (spaces don't matter).
+gmail_app_password = ""
+
+# --- GreenGeeks settings (only needed if provider == "greengeeks") ---
+# GreenGeeks mail is plain cPanel hosting - there's no 2FA/OAuth option,
+# just an account password sent over an SSL connection (port 465).
+# Set smtp_host above to your mail server, usually mail.yourdomain.com
+# (confirm the exact value in cPanel > Email Accounts > Connect Devices).
+greengeeks_password = ""
+
+# --- Daily send-count report (optional) ---
+# If set, once a calendar day is over, an email is sent to this address
+# reporting how many emails were sent that day. Leave blank to disable.
+send_daily_test_mail_to = ""
+
+# --- Sent-mail CSV log (optional) ---
+# If set, every send attempt is appended to mail_log.csv in this folder
+# (date/time, recipient, attachment size, success, error). Leave blank
+# to disable.
+mail_log_folder = ""
+
+# Folder path from where files are emailed (send_email_bulk.py only)
+folder = r''
+
+subject = "" # <email-subject>
+message = """\
+<html>
+  <head></head>
+  <body>
+    Your display email message here<br>
+  </body>
+</html>
+"""
+
+# ============================================================================
+# SharePoint upload settings (send_to_sharepoint.py)
+# ============================================================================
+
+# Reuses the same Azure AD app registration as Office 365 email above
+# (tenant_id / client_id). That app additionally needs the Microsoft Graph
+# delegated permission "Sites.ReadWrite.All" added under API permissions
+# (grant admin consent if your tenant requires it). First run opens an
+# interactive browser login same as the email OAuth2 flow - see oauth365.py.
+sharepoint_scopes = ["https://graph.microsoft.com/Sites.ReadWrite.All"]
+
+# Account used for the login prompt/token cache. Leave blank to reuse
+# sender_email above.
+sharepoint_username = ""
+
+# The SharePoint site to upload to, e.g. hostname "contoso.sharepoint.com"
+# and site_path "/sites/YourSiteName" (find both in the site's URL:
+# https://<hostname>/sites/<site_path-without-leading-slash>/...).
+sharepoint_hostname = ""   # <contoso.sharepoint.com>
+sharepoint_site_path = ""  # </sites/YourSiteName>
+
+# Default destination folder within the site's default document library.
+# Leave blank to upload to the library root. Can be overridden per-run with
+# send_to_sharepoint.py's --folder argument.
+sharepoint_folder = ""

@@ -34,6 +34,13 @@ popd
 :: the file's docstring for details/required OBS setting changes). Runs
 :: detached (start "") so it doesn't hold up this script; it does its own
 :: waiting for OBS's WebSocket server to come up.
-:: Camera reset (USB power-cycle + OBS reconnect) is handled separately by
-:: reset_camera.py, run from launch.cmd - not from here.
 start "" python "%~dp0open_projector.py"
+
+:: Power-cycles the webcam's USB hub port and toggles it in OBS, so
+:: exhibits with a webcam that doesn't reconnect on its own don't need a
+:: physical unplug/replug after every OBS start. Runs detached and waits
+:: on its own for OBS's WebSocket server to come up. Gated by
+:: settings.resetCameraOnStart - a no-op (just logs and exits) for
+:: deployments without a webcam/hub, or where it's not enabled/configured
+:: yet, so it's safe to always call this here.
+start "" python "%~dp0reset_camera.py"
