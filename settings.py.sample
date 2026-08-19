@@ -86,9 +86,9 @@ cameraHubPowerOffSec = 5
 # ============================================================================
 
 # Folders holding the intro/outro clips, named by story number (e.g.
-# "1.mp4", "2.mp4", ...). The intro/outro for a given story must share the
-# same codec, resolution, and frame rate as the recording, since
-# send_video.py stream-copies (-c copy) rather than re-encoding.
+# "1.mp4", "2.mp4", ...). send_video.py re-encodes rather than
+# stream-copying, so these don't need to match the recording's codec,
+# resolution, or frame rate.
 introDir = r"C:\PATH\TO\INTRO"
 outroDir = r"C:\PATH\TO\OUTRO"
 
@@ -98,6 +98,13 @@ videoOutputDir = r"C:\PATH\TO\OUTPUT"
 # Full path to ffmpeg.exe if it isn't on the system PATH, e.g.
 # r"C:\ffmpeg\bin\ffmpeg.exe". Leave as "ffmpeg" if it's on PATH.
 ffmpegPath = "ffmpeg"
+
+# Output resolution/frame rate that intro, recording, and outro are all
+# normalized to (letterboxed, not stretched) before being joined. Defaults
+# match the recording profile set up by setup_obs.py.
+videoTargetWidth = 1280
+videoTargetHeight = 720
+videoTargetFps = 30
 
 # ============================================================================
 # Email sending settings (send_email.py / send_email_bulk.py)
