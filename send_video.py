@@ -5,14 +5,11 @@ Usage:
     send_video.py <video_file> <number>
 
 Builds:  {INTRO}\\{number}.mp4 + {video_file} + {OUTRO}\\{number}.mp4
-Saves to: {OUTPUT}\\<YYYY-MM-DD-HH-MM>.flv
+Saves to: {OUTPUT}\\<YYYY-MM-DD-HH-MM>.mp4
 
 Requires ffmpeg. This script uses stream-copy (-c copy), which is fast but
 requires the intro, recording, and outro to share the same codec,
-resolution, and frame rate. FLV containers also only support H.264 (or a
-few older codecs) for video and AAC/MP3 for audio, so if the source clips
-use a different codec, ffmpeg will error on stream-copy and they'll need
-to be re-encoded to a compatible codec first.
+resolution, and frame rate.
 
 Folder paths and ffmpeg location come from settings.py: introDir, outroDir,
 videoOutputDir, ffmpegPath.
@@ -56,7 +53,7 @@ def main(argv: list[str]) -> int:
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
-    output = OUTPUT_DIR / f"{timestamp}.flv"
+    output = OUTPUT_DIR / f"{timestamp}.mp4"
 
     list_file = OUTPUT_DIR / f"_concat_{timestamp}.txt"
     build_concat_file(list_file, [intro, video, outro])
