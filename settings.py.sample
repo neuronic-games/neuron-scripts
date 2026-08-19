@@ -82,6 +82,24 @@ cameraHubCusbcPath = "CUSBC"  # full path to CUSBC.exe if its folder isn't on PA
 cameraHubPowerOffSec = 5
 
 # ============================================================================
+# Video settings (send_video.py)
+# ============================================================================
+
+# Folders holding the intro/outro clips, named by story number (e.g.
+# "1.mp4", "2.mp4", ...). The intro/outro for a given story must share the
+# same codec, resolution, and frame rate as the recording, since
+# send_video.py stream-copies (-c copy) rather than re-encoding.
+introDir = r"C:\PATH\TO\INTRO"
+outroDir = r"C:\PATH\TO\OUTRO"
+
+# Folder the combined intro+recording+outro video is saved to
+videoOutputDir = r"C:\PATH\TO\OUTPUT"
+
+# Full path to ffmpeg.exe if it isn't on the system PATH, e.g.
+# r"C:\ffmpeg\bin\ffmpeg.exe". Leave as "ffmpeg" if it's on PATH.
+ffmpegPath = "ffmpeg"
+
+# ============================================================================
 # Email sending settings (send_email.py / send_email_bulk.py)
 # ============================================================================
 
