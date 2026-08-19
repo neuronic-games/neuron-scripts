@@ -85,11 +85,12 @@ CAMERA_NAME = getattr(settings, "cameraSource", "Integrated Webcam")
 CAMERA_TOGGLE_OFF_SEC = 1
 OBS_CONNECT_TIMEOUT_SEC = 30
 OBS_CONNECT_RETRY_DELAY_SEC = 2
-# A single off/on toggle right after a power-on isn't always enough - in
-# testing the camera sometimes needed a couple of Deactivate/Activate
-# passes in OBS before it actually started producing video. Retry the
-# toggle a few times with a gap between attempts to reproduce that.
-CAMERA_TOGGLE_ATTEMPTS = int(os.getenv("CAMERA_TOGGLE_ATTEMPTS", "3"))
+# With a genuine VBUS power cut (confirmed hub port 1 - see settings.py's
+# cameraHubPort comment), a single off/on toggle in OBS is enough. Multiple
+# retries were only needed to compensate for hub ports that only did a
+# soft/data-line disconnect instead of a real power cut. Kept configurable
+# in case a different hub/port ends up needing more than one pass again.
+CAMERA_TOGGLE_ATTEMPTS = int(os.getenv("CAMERA_TOGGLE_ATTEMPTS", "1"))
 CAMERA_TOGGLE_RETRY_INTERVAL_SEC = int(os.getenv("CAMERA_TOGGLE_RETRY_INTERVAL_SEC", "5"))
 
 
