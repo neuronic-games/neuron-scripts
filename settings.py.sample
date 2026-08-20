@@ -20,11 +20,16 @@ appPath = os.path.join(get_documents_folder(), 'Neuronic')
 appName = '???'  # e.g. Skeletal Pop
 
 # Folder for EXE file and its name. If appEXEName is left blank, guard.py
-# doesn't try to launch/monitor anything - it just shows the logo
-# full-screen and locks the desktop (Ctrl+Shift+S still unlocks/exits).
-# Useful before an app has been installed on this deployment yet.
+# doesn't try to launch/monitor anything - it just shows a full-screen
+# lock window (lockScreenColor background, logo centered) and locks the
+# desktop (Ctrl+Shift+S still unlocks/exits). Useful before an app has
+# been installed on this deployment yet.
 appEXEPath = r'' # e.g. r'C:/Users/admin/Neuronic/Apps/Skeletal Pop/Skeletal Pop Win'
 appEXEName = '' # e.g. skeletal-pop.exe
+
+# Background color of that lock window - a Tk color string, e.g. a hex
+# code or a name like "black".
+lockScreenColor = "#403a7a"
 
 # URL to launch in kiosk mode when appEXEPath/appEXEName point at Chrome
 # (i.e. is_chrome is True in guard.py). Not used otherwise.
