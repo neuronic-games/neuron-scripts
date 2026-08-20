@@ -2,7 +2,7 @@
 # Report a pulse to PulseBoard. Cross-platform: Windows, macOS, Linux.
 # Neuronic 2025
 
-import os, sys, time, json, socket, platform, subprocess, shutil
+import os, sys, time, json, socket, platform, subprocess, shutil, ssl
 import urllib.request, urllib.parse
 from datetime import datetime, timedelta
 
@@ -11,6 +11,19 @@ import settings
 
 _IS_WIN = sys.platform == 'win32'
 _IS_MAC = sys.platform == 'darwin'
+
+# Some Windows machines (especially locked-down/offline kiosks) can't
+# validate TLS certs against the OS trust store - Windows normally
+# auto-fetches missing root/intermediate CA certs on demand, which needs
+# general internet access and can silently fail without it, producing
+# "unable to get local issuer certificate" from urlopen(). Using certifi's
+# own bundled CA store instead sidesteps that entirely. Falls back to
+# urllib's default (OS trust store) behavior if certifi isn't installed.
+try:
+    import certifi
+    _SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
+except ImportError:
+    _SSL_CONTEXT = None
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -222,7 +235,7 @@ def send_pulse(status='', include_crashes=False):
 
     data = urllib.parse.urlencode(payload).encode()
     try:
-        with urllib.request.urlopen(pulse_url, data, timeout=15) as resp:
+        with urllib.request.urlopen(pulse_url, data, timeout=15, context=_SSL_CONTEXT) as resp:
             result = json.loads(resp.read())
         if result.get('ok'):
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Pulse OK")
