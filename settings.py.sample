@@ -107,6 +107,15 @@ videoTargetHeight = 720
 videoTargetFps = 30
 
 # ============================================================================
+# Folder cleanup settings (clean_up_folder.py)
+# ============================================================================
+
+# Default age cutoff, in days, for clean_up_folder.py - files whose
+# last-modified time is older than this many days are deleted. Can be
+# overridden per-run via clean_up_folder.py's own command-line argument.
+cleanupMaxAgeDays = 1
+
+# ============================================================================
 # Email sending settings (send_email.py / send_email_bulk.py)
 # ============================================================================
 
