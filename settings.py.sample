@@ -19,9 +19,12 @@ exhibitName = "???" # e.g. SKELETAL-POP-1
 appPath = os.path.join(get_documents_folder(), 'Neuronic')
 appName = '???'  # e.g. Skeletal Pop
 
-# Folder for EXE file and its name
-appEXEPath = r'C:/Program Files/Google/Chrome/Application' # e.g. r'C:/Users/admin/Neuronic/Apps/Skeletal Pop/Skeletal Pop Win'
-appEXEName = 'chrome.exe' # e.g. skeletal-pop.exe
+# Folder for EXE file and its name. If appEXEName is left blank, guard.py
+# doesn't try to launch/monitor anything - it just shows the logo
+# full-screen and locks the desktop (Ctrl+Shift+S still unlocks/exits).
+# Useful before an app has been installed on this deployment yet.
+appEXEPath = r'' # e.g. r'C:/Users/admin/Neuronic/Apps/Skeletal Pop/Skeletal Pop Win'
+appEXEName = '' # e.g. skeletal-pop.exe
 
 # URL to launch in kiosk mode when appEXEPath/appEXEName point at Chrome
 # (i.e. is_chrome is True in guard.py). Not used otherwise.
@@ -30,8 +33,9 @@ appURL = "https://www.neuronicgames.com"
 # Parameters for the EXE or URL for web browser
 appParams = "https://www.neuronicgames.com"
 
-# Client logo to be displayed on the desktop
-logoName = "neuronic.png"
+# Client logo to be displayed on the desktop (also shown full-screen by
+# guard.py when appEXEName is blank - see its comment below)
+logoBrand = "neuronic.png"
 
 # Check for latest archive defined in archive.txt (False for AIR app)
 checkForUpdate = False

@@ -49,6 +49,11 @@ logo_brand    = getattr(settings, 'logoBrand',         'neuronic.png')
 desktop_color = getattr(settings, 'desktopColor',      RGB(0, 0, 0)) if _IS_WIN else None
 reset_desktop = getattr(settings, 'resetDesktopColor', RGB(0, 0, 0)) if _IS_WIN else None
 
+# If no app is configured at all, guard.py just locks the desktop behind
+# the logo (see initApp()) with nothing to launch/monitor - not an error
+# case, just a valid "nothing installed on this deployment yet" state.
+NO_APP_CONFIGURED = not APP_EXE_NAME
+
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 logging.basicConfig(
     filename=os.path.join(_script_dir, crash_path),
@@ -57,6 +62,8 @@ logging.basicConfig(
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def kill_app():
+    if not APP_EXE_NAME:
+        return
     if _IS_WIN:
         os.system(f'taskkill /im "{APP_EXE_NAME}" /f >nul 2>&1')
     else:
@@ -93,7 +100,13 @@ def _wait_for_keypress():
 def check_app_exists():
     """Verify the app configured via appEXEPath/appEXEName is actually
     there before we hide the desktop and start monitoring it. Chrome kiosk
-    mode is exempt - it launches a URL, not a local EXE."""
+    mode is exempt - it launches a URL, not a local EXE. If appEXEName is
+    blank, no app is configured at all - that's not an error, it just
+    means initApp()/startAllProcess() lock the desktop behind the logo
+    with nothing to monitor (see NO_APP_CONFIGURED)."""
+    if NO_APP_CONFIGURED:
+        return True
+
     is_chrome = 'Chrome' in APP_EXE_PATH or 'chrome' in APP_EXE_PATH
     if is_chrome:
         return True
@@ -140,7 +153,11 @@ def initApp():
         ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(desktop_color)))
         logo_path = os.path.join(_script_dir, 'logo', logo_brand)
         ctypes.windll.user32.SystemParametersInfoW(20, 0, logo_path, 3)
-    print('Checking status periodically...')
+    if NO_APP_CONFIGURED:
+        print('No app configured (appEXEName is blank) - showing logo, desktop locked.')
+        print('Press Ctrl+Shift+S to unlock and exit.')
+    else:
+        print('Checking status periodically...')
 
 # ── App monitor ───────────────────────────────────────────────────────────────
 def getTasks(name):
@@ -206,12 +223,16 @@ def getTaskProcess(stop_event):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def startAllProcess():
-    if settings.checkForUpdate:
+    if settings.checkForUpdate and not NO_APP_CONFIGURED:
         archive_update.checkUpdateStatus()
 
     quit_event = Event()
     stop_event = Event()
-    task_thread = Thread(target=getTaskProcess, args=(stop_event,), daemon=True)
+    # Nothing to launch/monitor with no app configured - skip the monitor
+    # thread entirely rather than have it loop over an empty APP_EXE_NAME.
+    task_thread = None if NO_APP_CONFIGURED else Thread(
+        target=getTaskProcess, args=(stop_event,), daemon=True
+    )
 
     def on_quit():
         print('Ctrl+Shift+S pressed — quitting...')
@@ -219,7 +240,8 @@ def startAllProcess():
         # wait for it to actually notice - otherwise it can see the app
         # missing right after kill_app() and relaunch it before we exit.
         stop_event.set()
-        task_thread.join(timeout=5)
+        if task_thread:
+            task_thread.join(timeout=5)
         restore_desktop()
         kill_app()
         kill_pulse()
@@ -233,7 +255,8 @@ def startAllProcess():
         print(f'Hotkey not available ({e}) — use Ctrl+C to quit.')
         _hotkey_ok = False
 
-    task_thread.start()
+    if task_thread:
+        task_thread.start()
 
     try:
         if _hotkey_ok:
