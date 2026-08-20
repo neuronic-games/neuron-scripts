@@ -128,6 +128,45 @@ def check_app_exists():
     kill_pulse()
     return False
 
+def show_lock_window(quit_event):
+    """Full-screen, borderless, always-on-top black window with the logo
+    centered, blocking any access to the desktop underneath (the
+    wallpaper/desktop-color trick set in initApp() alone doesn't stop
+    someone from reaching desktop icons/taskbar in every case - an actual
+    covering window does). Used only when NO_APP_CONFIGURED. Runs its own
+    Tk event loop on the calling thread (must be the main thread) until
+    quit_event is set from elsewhere (e.g. the Ctrl+Shift+S hotkey, which
+    runs on its own thread - only quit_event.set() is called from there,
+    never anything Tk-related, since Tk isn't thread-safe)."""
+    import tkinter as tk
+
+    root = tk.Tk()
+    root.overrideredirect(True)
+    root.attributes('-topmost', True)
+    root.configure(bg='black')
+    root.geometry(f'{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0')
+
+    logo_path = os.path.join(_script_dir, 'logo', logo_brand)
+    image = None
+    if os.path.isfile(logo_path):
+        try:
+            image = tk.PhotoImage(file=logo_path)
+        except Exception as e:
+            print(f'Could not load logo image {logo_path}: {e}')
+
+    label = tk.Label(root, bg='black', image=image if image else None)
+    label.image = image  # keep a reference - PhotoImage is GC'd otherwise
+    label.place(relx=0.5, rely=0.5, anchor='center')
+
+    def _poll_quit():
+        if quit_event.is_set():
+            root.destroy()
+        else:
+            root.after(200, _poll_quit)
+
+    root.after(200, _poll_quit)
+    root.mainloop()
+
 def getWallpaper():
     bg = os.path.join(_script_dir, 'background')
     files = os.listdir(bg) if os.path.isdir(bg) else []
@@ -235,16 +274,13 @@ def startAllProcess():
     )
 
     def on_quit():
+        # Called from the keyboard hotkey's own listener thread (or from
+        # Ctrl+C on the main thread) - only signal here, don't do cleanup
+        # or touch Tk directly. Tk (used by show_lock_window) isn't
+        # thread-safe, so the lock window polls quit_event itself and
+        # destroys itself on the main thread; all the actual cleanup below
+        # runs exactly once, after whichever wait mechanism returns.
         print('Ctrl+Shift+S pressed — quitting...')
-        # Tell the monitor thread to stop *before* killing anything, and
-        # wait for it to actually notice - otherwise it can see the app
-        # missing right after kill_app() and relaunch it before we exit.
-        stop_event.set()
-        if task_thread:
-            task_thread.join(timeout=5)
-        restore_desktop()
-        kill_app()
-        kill_pulse()
         quit_event.set()
 
     try:
@@ -259,13 +295,27 @@ def startAllProcess():
         task_thread.start()
 
     try:
-        if _hotkey_ok:
+        if NO_APP_CONFIGURED and _IS_WIN:
+            show_lock_window(quit_event)  # blocks (own Tk loop) until quit_event is set
+        elif _hotkey_ok:
             quit_event.wait()
         else:
-            while True:
+            while not quit_event.is_set():
                 time.sleep(1)
     except KeyboardInterrupt:
-        on_quit()
+        quit_event.set()
+
+    # Cleanup - runs once, on the main thread, regardless of which wait
+    # mechanism above returned. Tell the monitor thread to stop *before*
+    # killing anything, and wait for it to actually notice - otherwise it
+    # can see the app missing right after kill_app() and relaunch it
+    # before we exit.
+    stop_event.set()
+    if task_thread:
+        task_thread.join(timeout=5)
+    restore_desktop()
+    kill_app()
+    kill_pulse()
 
 if __name__ == '__main__':
     import traceback
