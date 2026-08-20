@@ -49,6 +49,10 @@ logo_brand    = getattr(settings, 'logoBrand',         'neuronic.png')
 desktop_color = getattr(settings, 'desktopColor',      RGB(0, 0, 0)) if _IS_WIN else None
 reset_desktop = getattr(settings, 'resetDesktopColor', RGB(0, 0, 0)) if _IS_WIN else None
 
+# Background color for the no-app lock window (see show_lock_window()) - a
+# Tk color string, e.g. "#403a7a" or a name like "black".
+lock_screen_color = getattr(settings, 'lockScreenColor', '#403a7a')
+
 # If no app is configured at all, guard.py just locks the desktop behind
 # the logo (see initApp()) with nothing to launch/monitor - not an error
 # case, just a valid "nothing installed on this deployment yet" state.
@@ -129,8 +133,9 @@ def check_app_exists():
     return False
 
 def show_lock_window(quit_event):
-    """Full-screen, borderless, always-on-top black window with the logo
-    centered, blocking any access to the desktop underneath (the
+    """Full-screen, borderless, always-on-top window (lock_screen_color
+    background) with the logo centered, blocking any access to the desktop
+    underneath (the
     wallpaper/desktop-color trick set in initApp() alone doesn't stop
     someone from reaching desktop icons/taskbar in every case - an actual
     covering window does). Used only when NO_APP_CONFIGURED. Runs its own
@@ -143,7 +148,7 @@ def show_lock_window(quit_event):
     root = tk.Tk()
     root.overrideredirect(True)
     root.attributes('-topmost', True)
-    root.configure(bg='black')
+    root.configure(bg=lock_screen_color)
     root.geometry(f'{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0')
 
     logo_path = os.path.join(_script_dir, 'logo', logo_brand)
@@ -154,7 +159,7 @@ def show_lock_window(quit_event):
         except Exception as e:
             print(f'Could not load logo image {logo_path}: {e}')
 
-    label = tk.Label(root, bg='black', image=image if image else None)
+    label = tk.Label(root, bg=lock_screen_color, image=image if image else None)
     label.image = image  # keep a reference - PhotoImage is GC'd otherwise
     label.place(relx=0.5, rely=0.5, anchor='center')
 
