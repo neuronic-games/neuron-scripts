@@ -2,7 +2,7 @@
 # Report a pulse to PulseBoard. Cross-platform: Windows, macOS, Linux.
 # Neuronic 2025
 
-import os, sys, time, json, socket, platform, subprocess, shutil, ssl
+import os, sys, time, json, socket, platform, subprocess, shutil, ssl, getpass
 import urllib.request, urllib.parse
 from datetime import datetime, timedelta
 
@@ -169,6 +169,14 @@ def get_teamviewer_id():
                 continue
     return ''
 
+# ── Current user ──────────────────────────────────────────────────────────────
+
+def get_current_user():
+    try:
+        return getpass.getuser()
+    except Exception:
+        return ''
+
 # ── Process check ─────────────────────────────────────────────────────────────
 
 def is_running():
@@ -218,6 +226,7 @@ def send_pulse(status='', include_crashes=False):
         'exhibit':     settings.exhibitName,
         'host':        host_name,
         'ip':          host_ip,
+        'user':        get_current_user(),
         'os':          get_os(),
         'memory':      get_memory(),
         'disk':        get_disk(),
