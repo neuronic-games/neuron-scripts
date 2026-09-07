@@ -60,14 +60,14 @@ python "%USERPROFILE%\Documents\Neuronic\neuron-scripts\archive_update.py"
 
 echo.
 echo Starting pulse monitor (status reports)...
-start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\neuron-scripts\pulse.py"
+start /min cmd /c py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\pulse.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Run and monitor the app
 
 echo.
 echo Starting guard (app monitor / kiosk lockdown)...
-start /min cmd /c python "%USERPROFILE%\Documents\Neuronic\neuron-scripts\guard.py"
+start /min cmd /c py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\guard.py"
 
 echo.
 echo ============================================================
