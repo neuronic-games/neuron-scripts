@@ -53,7 +53,7 @@ git pull
 
 echo.
 echo Checking for app archive updates...
-python "%USERPROFILE%\Documents\Neuronic\neuron-scripts\archive_update.py"
+py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\archive_update.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Report status into Google Sheet
