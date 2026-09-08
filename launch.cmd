@@ -63,6 +63,18 @@ echo Starting pulse monitor (status reports)...
 start /min cmd /c py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\pulse.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Optional per-deployment hook to launch any auxiliary apps this exhibit
+:: needs, before guard.py locks down the desktop. Not required - only runs
+:: if launch_aux.cmd actually exists (copy launch_aux.cmd.sample to
+:: launch_aux.cmd and customize it to use this).
+
+if exist "%~dp0launch_aux.cmd" (
+    echo.
+    echo Running launch_aux.cmd...
+    call "%~dp0launch_aux.cmd"
+)
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Run and monitor the app
 
 echo.

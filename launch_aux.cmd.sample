@@ -1,0 +1,7 @@
+:: launch_aux.cmd.sample
+:: Copy to launch_aux.cmd and customize to launch any auxiliary apps this
+:: deployment needs, before guard.py starts and locks down the desktop.
+:: Optional - launch.cmd only calls launch_aux.cmd if it actually exists.
+
+@echo off
+echo Launching auxiliary apps...
