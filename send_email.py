@@ -29,6 +29,7 @@ def send_email_with_attachment(to_addr, attachment_file = None):
     msg = MIMEMultipart()
     msg['Subject'] = settings.subject
     msg['From'] = settings.sender_email
+    msg['Reply-To'] = settings.sender_email
     msg['To'] = to_addr
 
     part2 = MIMEText(msg_html, 'html')
