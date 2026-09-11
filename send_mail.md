@@ -27,7 +27,7 @@ pip install msal
 Open `settings.py` and set:
 
 ```python
-provider = "office365"   # or "gmail", or "greengeeks"
+provider = "office365"   # or "gmail", "greengeeks", or "mailgun"
 ```
 
 Also fill in the always-required fields:
@@ -83,6 +83,21 @@ GreenGeeks' mail hosting doesn't support 2FA/OAuth on SMTP — it's a plain acco
 smtp_host = "mail.yourdomain.com"
 greengeeks_password = "..."
 ```
+
+### Mailgun
+
+Mailgun is a purpose-built transactional email service, not a mailbox - no 2FA/OAuth, just plain SMTP AUTH over STARTTLS to `smtp.mailgun.org`. You need SMTP credentials for your sending domain:
+
+1. In the Mailgun dashboard: **Sending → Domain settings → SMTP credentials** for the domain you're sending from.
+2. Either use the default `postmaster@<your-mailgun-domain>` login or create a new one, and grab (or reset) its password.
+3. Paste both into `settings.py`:
+
+```python
+mailgun_smtp_login = "postmaster@mg.yourdomain.com"
+mailgun_smtp_password = "..."
+```
+
+Note these are Mailgun's own SMTP credentials, separate from `sender_email` above - they don't need to match. `sender_email` still controls the `From` address on outgoing mail, but the domain it's on should be a domain you've verified in Mailgun (added SPF/DKIM records for), or Mailgun will reject or flag the send.
 
 ## 2. Set the message content
 
@@ -158,7 +173,8 @@ Because this runs unattended, run it interactively once after setup (before it h
 
 - `msal_token_cache.bin` (Office 365 only) holds your cached login — don't share or commit it. Delete it to force a fresh interactive login.
 - Switching `provider` at any time re-routes both scripts to the new service; no other code changes needed.
-- `smtp_host` / `smtp_port` in `settings.py` are optional overrides — leave blank to use each provider's default (Office 365 and Gmail already have sensible defaults; GreenGeeks requires `smtp_host` to be set explicitly).
+- `smtp_host` / `smtp_port` in `settings.py` are optional overrides — leave blank to use each provider's default (Office 365, Gmail, and Mailgun already have sensible defaults; GreenGeeks requires `smtp_host` to be set explicitly).
+- Mailgun vs GreenGeeks: GreenGeeks is a regular cPanel mailbox (cheap, bundled with hosting, low per-hour sending caps, shared-IP deliverability); Mailgun is a dedicated transactional email service (per-month sending caps, scoped SMTP credentials instead of a mailbox password, plus SPF/DKIM/DMARC and bounce/analytics tooling built in). They're not mutually exclusive — e.g. GreenGeeks for a regular inbox, Mailgun for automated exhibit mail.
 - `mail_stats.json` holds the send counts behind the daily report. Delete it to reset counters; safe to do any time.
 - Email config lives in the same `settings.py` used by `guard.py`/`pulse.py`/`open_projector.py`/`reset_camera.py` for kiosk/OBS monitoring — one file per deployment, loaded the same way everywhere (including the `NEURON_SETTINGS_FILE` alternate-file override from `launch.cmd`).
 - If `mail_log_folder` isn't writable, the send itself still succeeds — a warning is just logged and the CSV write is skipped.

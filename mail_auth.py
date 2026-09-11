@@ -1,7 +1,8 @@
 # Provider-agnostic SMTP connect + authenticate helper.
 #
-# Reads settings.provider ("office365", "gmail", or "greengeeks") and
-# returns a ready-to-send, authenticated smtplib server via connect().
+# Reads settings.provider ("office365", "gmail", "greengeeks", or
+# "mailgun") and returns a ready-to-send, authenticated smtplib server
+# via connect().
 #
 #   - office365: OAuth2 / Modern Auth via oauth365.py (browser login,
 #     handles 2FA, then silent token refresh). See oauth365.py for the
@@ -22,6 +23,14 @@
 #     (usually mail.yourdomain.com - check cPanel > Email Accounts >
 #     Connect Devices for the exact value) and
 #     settings.greengeeks_password to the mailbox password.
+#
+#   - mailgun: Plain SMTP AUTH (no OAuth) over STARTTLS to
+#     smtp.mailgun.org. Mailgun issues its own SMTP credentials per
+#     sending domain (Sending → Domain settings → SMTP credentials) -
+#     the login is usually postmaster@<your-mailgun-domain> and is NOT
+#     necessarily the same as settings.sender_email. Set
+#     settings.mailgun_smtp_login and settings.mailgun_smtp_password
+#     to those values.
 
 import smtplib
 import ssl
@@ -35,6 +44,7 @@ _SMTP_DEFAULTS = {
     "office365": {"host": "smtp.office365.com", "port": 587, "mode": "starttls"},
     "gmail": {"host": "smtp.gmail.com", "port": 587, "mode": "starttls"},
     "greengeeks": {"host": None, "port": 465, "mode": "ssl"},
+    "mailgun": {"host": "smtp.mailgun.org", "port": 587, "mode": "starttls"},
 }
 
 
@@ -42,7 +52,7 @@ def _get_provider_and_config():
     provider = getattr(settings, "provider", "office365").lower()
     if provider not in _SMTP_DEFAULTS:
         raise ValueError(
-            "Unknown settings.provider %r (expected 'office365', 'gmail', or 'greengeeks')"
+            "Unknown settings.provider %r (expected 'office365', 'gmail', 'greengeeks', or 'mailgun')"
             % provider
         )
     cfg = dict(_SMTP_DEFAULTS[provider])
@@ -105,8 +115,11 @@ def authenticate(server):
     elif provider == "greengeeks":
         server.login(settings.sender_email, settings.greengeeks_password)
 
+    elif provider == "mailgun":
+        server.login(settings.mailgun_smtp_login, settings.mailgun_smtp_password)
+
     else:
         raise ValueError(
-            "Unknown settings.provider %r (expected 'office365', 'gmail', or 'greengeeks')"
+            "Unknown settings.provider %r (expected 'office365', 'gmail', 'greengeeks', or 'mailgun')"
             % provider
         )
