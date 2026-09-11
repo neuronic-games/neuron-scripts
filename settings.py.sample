@@ -128,7 +128,7 @@ cleanupMaxAgeDays = 1
 # Email sending settings (send_email.py / send_email_bulk.py)
 # ============================================================================
 
-# --- Which email provider to use: "office365", "gmail", or "greengeeks" ---
+# --- Which email provider to use: "office365", "gmail", "greengeeks", or "mailgun" ---
 provider = "office365"
 
 sender_name = ""    # <smtp-sender-name>
@@ -159,6 +159,16 @@ gmail_app_password = ""
 # Set smtp_host above to your mail server, usually mail.yourdomain.com
 # (confirm the exact value in cPanel > Email Accounts > Connect Devices).
 greengeeks_password = ""
+
+# --- Mailgun settings (only needed if provider == "mailgun") ---
+# Mailgun is a purpose-built transactional email service (not a mailbox) -
+# no 2FA/OAuth, just plain SMTP AUTH over STARTTLS. Get SMTP credentials
+# from the Mailgun dashboard: Sending > Domain settings > SMTP credentials
+# for your sending domain. The login there is usually
+# postmaster@<your-mailgun-domain> and is its own username/password pair -
+# it does NOT need to match sender_email above.
+mailgun_smtp_login = ""
+mailgun_smtp_password = ""
 
 # --- Daily send-count report (optional) ---
 # If set, once a calendar day is over, an email is sent to this address
