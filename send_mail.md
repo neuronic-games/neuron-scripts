@@ -74,14 +74,15 @@ No Google Cloud project or OAuth setup needed — the app password is the standa
 
 ### GreenGeeks (or other cPanel-hosted mail)
 
-GreenGeeks' mail hosting doesn't support 2FA/OAuth on SMTP — it's a plain account password over an SSL connection (port 465). You need:
+GreenGeeks' mail hosting doesn't support 2FA/OAuth on SMTP — it's a plain account login/password over an SSL connection (port 465). You need:
 
 1. **`smtp_host`** — your mail server, usually `mail.yourdomain.com`. Confirm the exact value in cPanel → Email Accounts → **Connect Devices** for the mailbox (GreenGeeks doesn't use one universal hostname across all accounts).
-2. **`greengeeks_password`** — the mailbox password.
+2. **`smtp_login`** / **`smtp_password`** — the mailbox's login (usually the full email address) and password.
 
 ```python
 smtp_host = "mail.yourdomain.com"
-greengeeks_password = "..."
+smtp_login = "you@yourdomain.com"
+smtp_password = "..."
 ```
 
 ### Mailgun
@@ -93,8 +94,8 @@ Mailgun is a purpose-built transactional email service, not a mailbox - no 2FA/O
 3. Paste both into `settings.py`:
 
 ```python
-mailgun_smtp_login = "postmaster@mg.yourdomain.com"
-mailgun_smtp_password = "..."
+smtp_login = "postmaster@mg.yourdomain.com"
+smtp_password = "..."
 ```
 
 Note these are Mailgun's own SMTP credentials, separate from `sender_email` above - they don't need to match. `sender_email` still controls the `From` address on outgoing mail, but the domain it's on should be a domain you've verified in Mailgun (added SPF/DKIM records for), or Mailgun will reject or flag the send.

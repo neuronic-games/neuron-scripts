@@ -19,18 +19,17 @@
 #     (port 465), which is what GreenGeeks' cPanel-based mail hosting
 #     provides. GreenGeeks mail accounts don't support 2FA/OAuth on SMTP -
 #     the account password over TLS is the only auth method the server
-#     exposes. Set settings.smtp_host to your mail server
-#     (usually mail.yourdomain.com - check cPanel > Email Accounts >
-#     Connect Devices for the exact value) and
-#     settings.greengeeks_password to the mailbox password.
+#     exposes. Set settings.smtp_host to your mail server (usually
+#     mail.yourdomain.com - check cPanel > Email Accounts > Connect
+#     Devices for the exact value) and settings.smtp_login /
+#     settings.smtp_password to the mailbox's login and password.
 #
 #   - mailgun: Plain SMTP AUTH (no OAuth) over STARTTLS to
 #     smtp.mailgun.org. Mailgun issues its own SMTP credentials per
 #     sending domain (Sending → Domain settings → SMTP credentials) -
 #     the login is usually postmaster@<your-mailgun-domain> and is NOT
 #     necessarily the same as settings.sender_email. Set
-#     settings.mailgun_smtp_login and settings.mailgun_smtp_password
-#     to those values.
+#     settings.smtp_login and settings.smtp_password to those values.
 
 import smtplib
 import ssl
@@ -113,10 +112,10 @@ def authenticate(server):
         oauth365.smtp_login_oauth2(server, settings.sender_email, access_token)
 
     elif provider == "greengeeks":
-        server.login(settings.sender_email, settings.greengeeks_password)
+        server.login(settings.smtp_login, settings.smtp_password)
 
     elif provider == "mailgun":
-        server.login(settings.mailgun_smtp_login, settings.mailgun_smtp_password)
+        server.login(settings.smtp_login, settings.smtp_password)
 
     else:
         raise ValueError(
