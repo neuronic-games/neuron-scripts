@@ -157,18 +157,22 @@ gmail_app_password = ""
 # GreenGeeks mail is plain cPanel hosting - there's no 2FA/OAuth option,
 # just an account password sent over an SSL connection (port 465).
 # Set smtp_host above to your mail server, usually mail.yourdomain.com
-# (confirm the exact value in cPanel > Email Accounts > Connect Devices).
-greengeeks_password = ""
+# (confirm the exact value in cPanel > Email Accounts > Connect Devices),
+# and smtp_login / smtp_password below to the mailbox's login (usually
+# the full email address) and password.
 
 # --- Mailgun settings (only needed if provider == "mailgun") ---
 # Mailgun is a purpose-built transactional email service (not a mailbox) -
 # no 2FA/OAuth, just plain SMTP AUTH over STARTTLS. Get SMTP credentials
 # from the Mailgun dashboard: Sending > Domain settings > SMTP credentials
-# for your sending domain. The login there is usually
-# postmaster@<your-mailgun-domain> and is its own username/password pair -
-# it does NOT need to match sender_email above.
-mailgun_smtp_login = ""
-mailgun_smtp_password = ""
+# for your sending domain, and put them in smtp_login / smtp_password
+# below. The login there is usually postmaster@<your-mailgun-domain> and
+# is its own username/password pair - it does NOT need to match
+# sender_email above.
+
+# --- SMTP login/password (only needed if provider == "greengeeks" or "mailgun") ---
+smtp_login = ""
+smtp_password = ""
 
 # --- Daily send-count report (optional) ---
 # If set, once a calendar day is over, an email is sent to this address
