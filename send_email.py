@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email.encoders import encode_base64
+from email.utils import formataddr
 import os
 import sys
 
@@ -28,7 +29,7 @@ msg_html = settings.message
 def send_email_with_attachment(to_addr, attachment_file = None):
     msg = MIMEMultipart()
     msg['Subject'] = settings.subject
-    msg['From'] = settings.sender_email
+    msg['From'] = formataddr((getattr(settings, 'sender_name', ''), settings.sender_email))
     msg['To'] = to_addr
 
     part2 = MIMEText(msg_html, 'html')
