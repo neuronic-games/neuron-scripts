@@ -34,7 +34,7 @@ popd
 :: the file's docstring for details/required OBS setting changes). Runs
 :: detached (start "") so it doesn't hold up this script; it does its own
 :: waiting for OBS's WebSocket server to come up.
-start "" python "%~dp0open_projector.py"
+:: start "" python "%~dp0open_projector.py"
 
 :: Power-cycles the webcam's USB hub port and toggles it in OBS, so
 :: exhibits with a webcam that doesn't reconnect on its own don't need a
