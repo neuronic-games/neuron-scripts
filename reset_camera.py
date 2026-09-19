@@ -2,14 +2,21 @@
 """Reset the webcam by power-cycling its USB port on a StarTech managed
 hub, then toggling it in OBS a few times - reproduces the confirmed-working
 manual fix (physical unplug/replug, then a couple of OBS Deactivate/
-Activate passes) entirely from software. Standalone/independent of
-open_projector.py.
+Activate passes) entirely from software.
 
-Run automatically from start_obs.cmd every time OBS starts, gated by
-settings.resetCameraOnStart (a no-op that just logs and exits when False -
+Run SYNCHRONOUSLY from start_obs.cmd, before open_projector.py, every
+time OBS starts - gated by settings.resetCameraOnStart (a no-op that just
+logs and exits immediately when False, without even connecting to OBS -
 harmless to always call from start_obs.cmd regardless of whether a given
-deployment has a camera/hub at all). Can also be run manually on its own,
-e.g. when the camera's dead outside of a fresh OBS launch.
+deployment has a camera/hub at all). Must finish before open_projector.py
+opens any scene/source projector containing the camera: confirmed on a
+real deployment that toggling the camera source off/on here, after such a
+projector was already open, left that projector stuck showing a blank
+feed even once the camera itself recovered (the same class of
+stuck-render bug open_projector.py's own close-and-reopen fix targets,
+just triggered by the source's enable/disable cycle instead of OBS's
+startup race). Can also be run manually on its own, e.g. when the
+camera's dead outside of a fresh OBS launch.
 
 --- Hardware step ---
 Requires a StarTech managed USB hub (5G4AINDRM-USB-A-HUB) with its
