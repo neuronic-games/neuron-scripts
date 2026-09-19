@@ -1,34 +1,34 @@
 #!/usr/bin/env python
 """Reset the webcam by power-cycling its USB port on a StarTech managed
-hub, then toggling it in OBS a few times - reproduces the confirmed-working
-manual fix (physical unplug/replug, then a couple of OBS Deactivate/
-Activate passes) entirely from software.
+hub, then pressing its OBS source's own "Activate"/"Deactivate" button
+twice - reproduces the confirmed-working manual fix (physical unplug/
+replug, then a couple of OBS Deactivate/Activate button presses) entirely
+from software.
 
-Run in TWO SEPARATE synchronous steps from start_obs.cmd, with
-open_projector.py run in between - gated by settings.resetCameraOnStart
-(a no-op that just logs and exits immediately when False, without even
-connecting to OBS - harmless to always call regardless of whether a given
-deployment has a camera/hub at all):
+IMPORTANT: this is NOT the same as toggling the source's visibility/
+enabled state in a scene (obs-websocket's SetSceneItemEnabled) - that was
+tried first and confirmed on a real deployment NOT to work, because it
+only affects OBS's notion of whether the source is "showing" in some
+scene, which the win-dshow plugin only reacts to if that source's own
+"Deactivate when not showing" checkbox is turned on (Properties for the
+source > that checkbox) - off by default, and off on the deployment where
+this was diagnosed. The actual Activate/Deactivate button visible in that
+same Properties dialog is a distinct control (win-dshow.cpp's "activate"
+button property) that unconditionally flips the device's active state and
+does a full DirectShow filter-graph reset every time, regardless of scene
+visibility - this is the one the manual fix actually presses, and the one
+this script now presses via obs-websocket's PressInputPropertiesButton
+request (propertyName "activate"). Since it doesn't depend on scene
+visibility, it can run any time relative to open_projector.py - no
+particular ordering required between them, beyond both waiting for OBS's
+WebSocket to be up.
 
-    reset_camera.py power-cycle    (before open_projector.py)
-    open_projector.py
-    reset_camera.py toggle         (after open_projector.py)
-
-Why split like this: the OBS-side toggle only actually reinitializes the
-capture device if the scene containing it is currently being shown by
-something (Program, Preview, or an open projector) at the moment of the
-toggle - confirmed on a real deployment where the camera lived in a scene
-that's neither Program nor Preview at boot, only reachable via its own
-dedicated projector. Toggling before that projector was ever opened did
-nothing (no error - the API call just doesn't reinitialize the device
-when nothing's watching that scene), and no amount of retrying to
-close/reopen the projector window afterward fixed it either (that fixes
-a different bug - a stuck window render target - not a device that was
-never actually reinitialized in the first place). Toggling again once the
-projector was open (matching the user's own manual deactivate/reactivate
-fix) is what actually worked. Running with no argument does both steps
-back to back, which is fine for a manual/standalone run where the camera
-is likely already shown by something.
+Run automatically from start_obs.cmd every time OBS starts, gated by
+settings.resetCameraOnStart (a no-op that just logs and exits immediately
+when False, without even connecting to OBS - harmless to always call
+regardless of whether a given deployment has a camera/hub at all). Can
+also be run manually on its own, e.g. when the camera's dead outside of a
+fresh OBS launch.
 
 --- Hardware step ---
 Requires a StarTech managed USB hub (5G4AINDRM-USB-A-HUB) with its
@@ -65,7 +65,6 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
-import sys
 import time
 
 import obsws_python as obs
@@ -106,10 +105,11 @@ CAMERA_TOGGLE_OFF_SEC = 1
 OBS_CONNECT_TIMEOUT_SEC = 30
 OBS_CONNECT_RETRY_DELAY_SEC = 2
 # With a genuine VBUS power cut (confirmed hub port 1 - see settings.py's
-# cameraHubPort comment), a single off/on toggle in OBS is enough. Multiple
-# retries were only needed to compensate for hub ports that only did a
-# soft/data-line disconnect instead of a real power cut. Kept configurable
-# in case a different hub/port ends up needing more than one pass again.
+# cameraHubPort comment), a single Activate/Deactivate button-press pass
+# is enough. Multiple retries were only needed to compensate for hub
+# ports that only did a soft/data-line disconnect instead of a real power
+# cut. Kept configurable in case a different hub/port ends up needing
+# more than one pass again.
 CAMERA_TOGGLE_ATTEMPTS = int(os.getenv("CAMERA_TOGGLE_ATTEMPTS", "1"))
 CAMERA_TOGGLE_RETRY_INTERVAL_SEC = int(os.getenv("CAMERA_TOGGLE_RETRY_INTERVAL_SEC", "5"))
 
@@ -162,110 +162,42 @@ def wait_for_obs() -> obs.ReqClient:
     )
 
 
-def find_camera_scene(client: obs.ReqClient, source_name: str):
-    """Find a scene containing a scene item named source_name, so the
-    camera can be toggled even when it only lives in a scene that isn't
-    the current Program scene at boot (e.g. a dedicated "Raw Scene" that
-    gets opened via its own projector, separate from whatever Program
-    happens to be showing at startup - confirmed on a real deployment
-    where this mismatch silently skipped the toggle entirely). Checks
-    the current program scene first (fast path, and matches the
-    original/common case), then falls back to scanning every scene.
-    Returns (scene_name, scene_item_id), or (None, None) if not found
-    anywhere."""
-    try:
-        program_scene = client.get_current_program_scene().current_program_scene_name
-    except Exception:
-        program_scene = None
-
-    if program_scene:
-        try:
-            item_id = client.get_scene_item_id(program_scene, source_name).scene_item_id
-            return program_scene, item_id
-        except Exception:
-            log.info(
-                "'%s' not in current program scene '%s' - checking other scenes...",
-                source_name, program_scene,
-            )
-
-    try:
-        scene_names = [s["sceneName"] for s in client.get_scene_list().scenes]
-    except Exception:
-        log.exception("Could not get the scene list from OBS")
-        return None, None
-
-    for scene_name in scene_names:
-        if scene_name == program_scene:
-            continue  # already checked above
-        try:
-            item_id = client.get_scene_item_id(scene_name, source_name).scene_item_id
-            return scene_name, item_id
-        except Exception:
-            continue
-
-    return None, None
-
-
 def toggle_camera_in_obs() -> None:
+    """Press the camera source's own Activate/Deactivate properties
+    button twice via obs-websocket's PressInputPropertiesButton - see
+    module docstring for why this (not SetSceneItemEnabled) is the
+    control that actually resets the device, and why it doesn't matter
+    which scene(s) the source is in or whether any of them are currently
+    shown."""
     client = wait_for_obs()
-
-    scene_name, item_id = find_camera_scene(client, CAMERA_NAME)
-    if item_id is None:
-        log.warning("Could not find source '%s' in any scene - nothing to toggle.", CAMERA_NAME)
-        return
-    log.info("Found '%s' in scene '%s' (scene item %s)", CAMERA_NAME, scene_name, item_id)
 
     for attempt in range(1, CAMERA_TOGGLE_ATTEMPTS + 1):
         log.info(
-            "Toggling '%s' (scene item %s) off/on in OBS (attempt %d/%d)...",
-            CAMERA_NAME, item_id, attempt, CAMERA_TOGGLE_ATTEMPTS,
+            "Pressing '%s'\'s Activate/Deactivate button twice in OBS "
+            "(attempt %d/%d)...",
+            CAMERA_NAME, attempt, CAMERA_TOGGLE_ATTEMPTS,
         )
-        client.set_scene_item_enabled(scene_name, item_id, False)
-        time.sleep(CAMERA_TOGGLE_OFF_SEC)
-        client.set_scene_item_enabled(scene_name, item_id, True)
+        try:
+            client.press_input_properties_button(CAMERA_NAME, "activate")
+            time.sleep(CAMERA_TOGGLE_OFF_SEC)
+            client.press_input_properties_button(CAMERA_NAME, "activate")
+        except Exception as e:
+            log.warning("Could not press the activate button on '%s': %s", CAMERA_NAME, e)
+            return
 
         if attempt < CAMERA_TOGGLE_ATTEMPTS:
             time.sleep(CAMERA_TOGGLE_RETRY_INTERVAL_SEC)
 
 
-def main(argv=None) -> None:
-    """Usage: reset_camera.py [power-cycle|toggle]
-
-    With no argument, does both steps back to back (the original
-    behavior - fine for a manual/standalone run, or for a camera that's
-    already actively shown by something in OBS when this runs).
-
-    start_obs.cmd instead calls the two steps separately, with
-    open_projector.py run in between - see that .cmd file's comments and
-    this module's docstring for why: the OBS-side toggle only actually
-    reinitializes the capture device if the scene containing it is
-    currently being shown by something (Program, Preview, or an open
-    projector) at the moment of the toggle. Confirmed on a real
-    deployment where the camera lived in a scene that's neither Program
-    nor Preview at boot (only reachable via its own dedicated
-    projector): toggling before that projector was open did nothing
-    (silently - no error, the API call just doesn't reinitialize the
-    device when the scene isn't showing), and no amount of retrying to
-    close/reopen the projector window afterward fixed it either, since
-    the device itself had genuinely never been reinitialized - only
-    toggling it again once the projector was actually open (matching the
-    user's own manual deactivate/reactivate fix) worked.
-    """
-    argv = sys.argv[1:] if argv is None else argv
-    mode = argv[0] if argv else "both"
-    if mode not in ("both", "power-cycle", "toggle"):
-        raise SystemExit("Usage: reset_camera.py [power-cycle|toggle]")
-
-    log.info("=== reset_camera.py starting (mode=%s) ===", mode)
+def main() -> None:
+    log.info("=== reset_camera.py starting ===")
 
     if not getattr(settings, "resetCameraOnStart", False):
         log.info("settings.resetCameraOnStart is False - nothing to do.")
         return
 
-    if mode in ("both", "power-cycle"):
-        power_cycle_camera_port()
-    if mode in ("both", "toggle"):
-        toggle_camera_in_obs()
+    power_cycle_camera_port()
+    toggle_camera_in_obs()
     log.info("Done.")
 
 
