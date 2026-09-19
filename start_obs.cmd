@@ -36,18 +36,30 @@ pushd "C:\Program Files\obs-studio\bin\64bit"
 start "" "obs64.exe" --startvirtualcam --disable-shutdown-check
 popd
 
-:: Once OBS is actually ready, open_projector.py opens the Program
-:: projector itself - a workaround for an OBS startup race condition (see
-:: the file's docstring for details/required OBS setting changes). Runs
-:: detached (start "") so it doesn't hold up this script; it does its own
-:: waiting for OBS's WebSocket server to come up.
-start "" python "%~dp0open_projector.py"
-
 :: Power-cycles the webcam's USB hub port and toggles it in OBS, so
 :: exhibits with a webcam that doesn't reconnect on its own don't need a
-:: physical unplug/replug after every OBS start. Runs detached and waits
-:: on its own for OBS's WebSocket server to come up. Gated by
-:: settings.resetCameraOnStart - a no-op (just logs and exits) for
-:: deployments without a webcam/hub, or where it's not enabled/configured
-:: yet, so it's safe to always call this here.
-start "" python "%~dp0reset_camera.py"
+:: physical unplug/replug after every OBS start. Runs SYNCHRONOUSLY here
+:: (not detached) and MUST come before open_projector.py below: both
+:: scripts wait independently for OBS's WebSocket, but open_projector.py's
+:: own settle delay (~5s) is much shorter than this script's hub power-
+:: cycle (~10s) plus its own OBS-connect wait - so running them in
+:: parallel let open_projector.py open a scene/source projector containing
+:: the camera BEFORE the camera was actually toggled alive, leaving that
+:: projector stuck showing a blank feed even after the camera itself
+:: recovered (same class of stuck-render bug open_projector.py's own
+:: close-and-reopen fix targets, just triggered by the source going
+:: through an enable/disable cycle after the projector already opened,
+:: not by OBS's startup race). Confirmed on a real deployment. Gated by
+:: settings.resetCameraOnStart - a no-op (just logs and exits
+:: immediately, without connecting to OBS) for deployments without a
+:: webcam/hub, or where it's not enabled/configured yet, so it's safe to
+:: always call this here.
+python "%~dp0reset_camera.py"
+
+:: Once OBS is actually ready, open_projector.py opens whatever
+:: projectors OBS has saved itself - a workaround for an OBS startup race
+:: condition (see the file's docstring for details/required OBS setting
+:: changes). Runs detached (start "") so it doesn't hold up this script;
+:: it does its own waiting for OBS's WebSocket server to come up. Must
+:: come after reset_camera.py above - see that call's comment.
+start "" python "%~dp0open_projector.py"
