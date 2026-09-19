@@ -11,6 +11,17 @@ https://github.com/obsproject/obs-studio/issues/8729
 Turn OFF "Save projectors on exit" in OBS (Settings > General >
 Projectors) so OBS doesn't also open its own stuck/black projector.
 
+Even opened this way (after waiting for OBS to connect, plus an extra
+settle delay), the projector window can still come up permanently blank -
+this is the same underlying OBS/Qt bug, just less likely to hit. A
+projector window that's blank because nothing ever painted it doesn't
+self-heal; it only starts showing video once something forces the OS to
+recomposite it (e.g. manually resizing/minimizing it, or switching scenes
+in the main OBS window). Since this runs unattended, on Windows we do
+that nudge ourselves right after opening the projector: find its window
+by title and minimize/restore it once, which forces its swap chain to be
+recreated and the projector to actually start rendering.
+
 Note: the webcam-not-reconnecting-on-startup problem is handled
 separately, by reset_camera.py - toggling the source in OBS alone isn't
 enough to bring the camera back, it needs an actual USB-level power cycle.
@@ -33,12 +44,18 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import time
 
 import obsws_python as obs
 
 import settings_loader  # must run before `import settings` below
 import settings
+
+_IS_WIN = sys.platform == 'win32'
+if _IS_WIN:
+    import ctypes
+    from ctypes import wintypes
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _LOG_FILE = os.path.join(_SCRIPT_DIR, "open_projector.log")
@@ -66,6 +83,13 @@ STARTUP_SETTLE_DELAY_SEC = 5   # extra wait after connecting, before doing
                                 # anything, so OBS has actually rendered at
                                 # least one real frame
 
+# --- Blank-projector nudge (Windows only - see module docstring) ---
+PROJECTOR_WINDOW_TITLE_SUBSTR = "Fullscreen Projector"
+FIND_WINDOW_TIMEOUT_SEC = 10   # how long to wait for the projector window
+                                # to actually appear before giving up
+FIND_WINDOW_POLL_SEC = 0.5
+NUDGE_SETTLE_SEC = 0.5         # pause between minimize and restore
+
 
 def wait_for_obs() -> obs.ReqClient:
     deadline = time.time() + CONNECT_TIMEOUT_SEC
@@ -90,6 +114,65 @@ def open_projector(client: obs.ReqClient) -> None:
         log.exception("Failed to open projector")
 
 
+def _find_projector_hwnd(title_substr: str, timeout_sec: float):
+    """Poll for a top-level window whose title contains title_substr,
+    e.g. the "Fullscreen Projector (Program)" window OBS creates.
+    Windows only. Returns the HWND, or None if it never showed up."""
+    user32 = ctypes.windll.user32
+    EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+
+    found = {"hwnd": None}
+
+    def _callback(hwnd, _lparam):
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length == 0:
+            return True
+        buf = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buf, length + 1)
+        if title_substr in buf.value:
+            found["hwnd"] = hwnd
+            return False  # stop enumeration
+        return True
+
+    proc = EnumWindowsProc(_callback)
+    deadline = time.time() + timeout_sec
+    while time.time() < deadline and found["hwnd"] is None:
+        user32.EnumWindows(proc, 0)
+        if found["hwnd"] is None:
+            time.sleep(FIND_WINDOW_POLL_SEC)
+    return found["hwnd"]
+
+
+def _nudge_projector_repaint() -> None:
+    """Work around the OBS/Qt bug where a projector window opened
+    programmatically renders permanently blank/black - never on its own,
+    only once something forces Windows to recomposite it. Minimizing then
+    restoring the window forces that recomposite (its swap chain gets
+    recreated), without needing any actual user interaction. Windows
+    only; a no-op elsewhere."""
+    if not _IS_WIN:
+        return
+
+    hwnd = _find_projector_hwnd(PROJECTOR_WINDOW_TITLE_SUBSTR, FIND_WINDOW_TIMEOUT_SEC)
+    if not hwnd:
+        log.warning(
+            "Could not find the projector window (title contains %r) within %ss "
+            "to nudge it - it may come up blank. It may just need more time to "
+            "appear, or its title may not match on this OBS version.",
+            PROJECTOR_WINDOW_TITLE_SUBSTR, FIND_WINDOW_TIMEOUT_SEC,
+        )
+        return
+
+    log.info("Found projector window (hwnd=%s) - minimizing/restoring to force a repaint...", hwnd)
+    SW_MINIMIZE = 6
+    SW_RESTORE = 9
+    user32 = ctypes.windll.user32
+    user32.ShowWindow(hwnd, SW_MINIMIZE)
+    time.sleep(NUDGE_SETTLE_SEC)
+    user32.ShowWindow(hwnd, SW_RESTORE)
+    log.info("Nudge done.")
+
+
 def main() -> None:
     log.info("=== open_projector.py starting ===")
     log.info("Waiting for OBS WebSocket at %s:%s ...", HOST, PORT)
@@ -99,6 +182,7 @@ def main() -> None:
     time.sleep(STARTUP_SETTLE_DELAY_SEC)
 
     open_projector(client)
+    _nudge_projector_repaint()
 
     log.info("Done.")
 
