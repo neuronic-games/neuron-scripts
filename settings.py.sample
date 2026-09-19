@@ -54,8 +54,13 @@ obsHost = "127.0.0.1"
 obsPort = 4455
 obsPassword = ""
 
-# Which monitor (0-indexed, per OBS's own GetMonitorList) to open the
-# Program projector fullscreen on
+# Fallback only, used by open_projector.py if OBS has no saved projector
+# layout yet (e.g. a brand new machine). Which monitor (0-indexed, per
+# OBS's own GetMonitorList) to open a Program projector on in that case.
+# Once you've arranged projectors in OBS and saved them (see
+# open_projector.py's docstring), this setting is no longer used - OBS's
+# own saved projector list drives everything, including any Preview/
+# Source projectors, with no settings.py changes needed.
 obsProjectorMonitor = 2
 
 # Exact name of the webcam source in OBS
