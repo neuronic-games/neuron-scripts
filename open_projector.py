@@ -15,12 +15,16 @@ Even opened this way (after waiting for OBS to connect, plus an extra
 settle delay), the projector window can still come up permanently blank -
 this is the same underlying OBS/Qt bug, just less likely to hit. A
 projector window that's blank because nothing ever painted it doesn't
-self-heal; it only starts showing video once something forces the OS to
-recomposite it (e.g. manually resizing/minimizing it, or switching scenes
-in the main OBS window). Since this runs unattended, on Windows we do
-that nudge ourselves right after opening the projector: find its window
-by title and minimize/restore it once, which forces its swap chain to be
-recreated and the projector to actually start rendering.
+self-heal; it only starts showing video once something forces Qt/OBS to
+actually resize (and thus repaint) it - which is why manually dragging a
+corner of the window by even a pixel is the fix people report. Minimizing
+and restoring does NOT work here (confirmed on a real deployment): the
+window comes back at the exact same size, so Qt never fires a
+resizeEvent and OBS never recreates the render target. Since this runs
+unattended, on Windows we do the actual fix ourselves right after opening
+the projector: find its window by title and shrink it by a couple pixels
+then resize it back to its original size, which forces a real
+resizeEvent both ways.
 
 Note: the webcam-not-reconnecting-on-startup problem is handled
 separately, by reset_camera.py - toggling the source in OBS alone isn't
@@ -94,7 +98,10 @@ PROJECTOR_WINDOW_TITLE_SUBSTRS = ("Projector", "Program")
 FIND_WINDOW_TIMEOUT_SEC = 10   # how long to wait for the projector window
                                 # to actually appear before giving up
 FIND_WINDOW_POLL_SEC = 0.5
-NUDGE_SETTLE_SEC = 0.5         # pause between minimize and restore
+NUDGE_SETTLE_SEC = 0.3         # pause between the shrink and the resize-back
+NUDGE_SHRINK_PX = 2            # how many pixels to shrink by - small enough
+                                # to not be visible, big enough to guarantee
+                                # a real size change (and thus a resizeEvent)
 
 
 def wait_for_obs() -> obs.ReqClient:
@@ -155,10 +162,11 @@ def _find_projector_hwnd(title_substrs, timeout_sec: float):
 def _nudge_projector_repaint() -> None:
     """Work around the OBS/Qt bug where a projector window opened
     programmatically renders permanently blank/black - never on its own,
-    only once something forces Windows to recomposite it. Minimizing then
-    restoring the window forces that recomposite (its swap chain gets
-    recreated), without needing any actual user interaction. Windows
-    only; a no-op elsewhere."""
+    only once something forces a real resize (and thus a Qt repaint) of
+    the window. Shrinks the window by a couple pixels, then resizes it
+    back to its original size/position - two genuine size changes,
+    equivalent to manually dragging a corner. Windows only; a no-op
+    elsewhere."""
     if not _IS_WIN:
         return
 
@@ -172,13 +180,26 @@ def _nudge_projector_repaint() -> None:
         )
         return
 
-    log.info("Found projector window (hwnd=%s) - minimizing/restoring to force a repaint...", hwnd)
-    SW_MINIMIZE = 6
-    SW_RESTORE = 9
     user32 = ctypes.windll.user32
-    user32.ShowWindow(hwnd, SW_MINIMIZE)
+    rect = wintypes.RECT()
+    if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+        log.warning("GetWindowRect failed for hwnd=%s - skipping nudge.", hwnd)
+        return
+
+    x, y = rect.left, rect.top
+    w, h = rect.right - rect.left, rect.bottom - rect.top
+    log.info(
+        "Found projector window (hwnd=%s, %sx%s at %s,%s) - shrinking then "
+        "resizing back to force a repaint...", hwnd, w, h, x, y,
+    )
+
+    SWP_NOZORDER = 0x0004
+    SWP_NOACTIVATE = 0x0010
+    flags = SWP_NOZORDER | SWP_NOACTIVATE
+
+    user32.SetWindowPos(hwnd, 0, x, y, max(w - NUDGE_SHRINK_PX, 1), h, flags)
     time.sleep(NUDGE_SETTLE_SEC)
-    user32.ShowWindow(hwnd, SW_RESTORE)
+    user32.SetWindowPos(hwnd, 0, x, y, w, h, flags)
     log.info("Nudge done.")
 
 
