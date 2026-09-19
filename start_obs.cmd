@@ -16,6 +16,13 @@ if exist "%OBS_BACKUP%" (
     call "%~dp0restore_obs_settings.cmd" /Y
 )
 
+:: Force OBS's "Save Projectors on Exit" off before every launch, so OBS
+:: never runs its own broken native projector restore (see
+:: open_projector.py's docstring), regardless of what's baked into the
+:: settings backup above. Runs synchronously (not detached) since it must
+:: finish before OBS itself starts and reads this setting.
+python "%~dp0disable_obs_save_projectors.py"
+
 :: An unclean shutdown leaves the .sentinel folder behind, which forces
 :: OBS to show an "unclean shutdown" warning dialog on next launch (bad for
 :: an unattended kiosk). Delete it so OBS starts silently.
