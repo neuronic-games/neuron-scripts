@@ -84,7 +84,13 @@ STARTUP_SETTLE_DELAY_SEC = 5   # extra wait after connecting, before doing
                                 # least one real frame
 
 # --- Blank-projector nudge (Windows only - see module docstring) ---
-PROJECTOR_WINDOW_TITLE_SUBSTR = "Fullscreen Projector"
+# OBS's projector window title has changed across versions - older builds
+# titled it "Fullscreen Projector (Program)", OBS 32.x titles it
+# "Projector - Program". Match on both required substrings rather than
+# one fixed string so this doesn't silently stop matching again on the
+# next OBS version bump. The main OBS window ("OBS 32.2.2 - Profile:
+# ...") never contains "Program", so this can't accidentally match it.
+PROJECTOR_WINDOW_TITLE_SUBSTRS = ("Projector", "Program")
 FIND_WINDOW_TIMEOUT_SEC = 10   # how long to wait for the projector window
                                 # to actually appear before giving up
 FIND_WINDOW_POLL_SEC = 0.5
@@ -114,10 +120,12 @@ def open_projector(client: obs.ReqClient) -> None:
         log.exception("Failed to open projector")
 
 
-def _find_projector_hwnd(title_substr: str, timeout_sec: float):
-    """Poll for a top-level window whose title contains title_substr,
-    e.g. the "Fullscreen Projector (Program)" window OBS creates.
-    Windows only. Returns the HWND, or None if it never showed up."""
+def _find_projector_hwnd(title_substrs, timeout_sec: float):
+    """Poll for a top-level window whose title contains every string in
+    title_substrs, e.g. ("Projector", "Program") to match either
+    "Fullscreen Projector (Program)" (older OBS) or "Projector - Program"
+    (OBS 32.x). Windows only. Returns the HWND, or None if it never
+    showed up."""
     user32 = ctypes.windll.user32
     EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
 
@@ -129,7 +137,8 @@ def _find_projector_hwnd(title_substr: str, timeout_sec: float):
             return True
         buf = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buf, length + 1)
-        if title_substr in buf.value:
+        title = buf.value
+        if all(substr in title for substr in title_substrs):
             found["hwnd"] = hwnd
             return False  # stop enumeration
         return True
@@ -153,13 +162,13 @@ def _nudge_projector_repaint() -> None:
     if not _IS_WIN:
         return
 
-    hwnd = _find_projector_hwnd(PROJECTOR_WINDOW_TITLE_SUBSTR, FIND_WINDOW_TIMEOUT_SEC)
+    hwnd = _find_projector_hwnd(PROJECTOR_WINDOW_TITLE_SUBSTRS, FIND_WINDOW_TIMEOUT_SEC)
     if not hwnd:
         log.warning(
-            "Could not find the projector window (title contains %r) within %ss "
-            "to nudge it - it may come up blank. It may just need more time to "
-            "appear, or its title may not match on this OBS version.",
-            PROJECTOR_WINDOW_TITLE_SUBSTR, FIND_WINDOW_TIMEOUT_SEC,
+            "Could not find the projector window (title containing all of %r) "
+            "within %ss to nudge it - it may come up blank. It may just need "
+            "more time to appear, or its title may not match on this OBS version.",
+            PROJECTOR_WINDOW_TITLE_SUBSTRS, FIND_WINDOW_TIMEOUT_SEC,
         )
         return
 
