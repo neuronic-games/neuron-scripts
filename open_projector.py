@@ -169,6 +169,10 @@ CLOSE_TIMEOUT_SEC = 5          # how long to wait for the old projector
 REOPEN_DELAY_SEC = 3           # extra pause after closing, before asking
                                 # OBS to open a fresh one - gives OBS's
                                 # video subsystem more time to be ready
+REOPEN_ATTEMPTS = 3            # how many close+reopen cycles to try
+                                # before giving up - a single cycle isn't
+                                # always enough (confirmed on a real
+                                # deployment)
 
 
 def wait_for_obs() -> obs.ReqClient:
@@ -381,15 +385,13 @@ def _wait_until_closed(hwnd, timeout_sec: float) -> bool:
     return not user32.IsWindow(hwnd)
 
 
-def _reopen_if_blank(client: obs.ReqClient, spec: dict) -> None:
-    """Close the projector window we just opened for this spec and open
-    a fresh one in its place. Works around the OBS/Qt bug where a
-    projector opened right at OBS startup renders permanently
-    blank/black - see module docstring for why this (rather than a
-    resize-driven repaint) is the actual fix. Windows only; a no-op
-    elsewhere."""
+def _reopen_once(client: obs.ReqClient, spec: dict) -> bool:
+    """Close the projector window currently open for this spec and open a
+    fresh one in its place. Returns True if a close+reopen cycle actually
+    happened, False if it couldn't even find/close the window (nothing
+    more to try). Windows only; a no-op (returns False) elsewhere."""
     if not _IS_WIN:
-        return
+        return False
 
     hwnd = _find_projector_hwnd(spec["title_substrs"], FIND_WINDOW_TIMEOUT_SEC)
     if not hwnd:
@@ -400,7 +402,7 @@ def _reopen_if_blank(client: obs.ReqClient, spec: dict) -> None:
             "this OBS version.",
             spec["label"], spec["title_substrs"], FIND_WINDOW_TIMEOUT_SEC,
         )
-        return
+        return False
 
     log.info("Closing %s projector window (hwnd=%s) so we can reopen it fresh...", spec["label"], hwnd)
     _close_window(hwnd)
@@ -411,11 +413,33 @@ def _reopen_if_blank(client: obs.ReqClient, spec: dict) -> None:
             "leaving it as-is, not attempting to reopen.",
             spec["label"], hwnd, CLOSE_TIMEOUT_SEC,
         )
-        return
+        return False
 
     log.info("Closed. Waiting %ss before opening a fresh %s projector...", REOPEN_DELAY_SEC, spec["label"])
     time.sleep(REOPEN_DELAY_SEC)
     open_projector(client, spec)
+    return True
+
+
+def _reopen_if_blank(client: obs.ReqClient, spec: dict) -> None:
+    """Repeatedly close-and-reopen the projector for this spec, working
+    around the OBS/Qt bug where a projector opened right at OBS startup
+    renders permanently blank/black - see module docstring for why
+    close-and-reopen (rather than a resize-driven repaint) is the actual
+    fix. One cycle is enough most of the time, but confirmed on a real
+    deployment that it can still land on a broken render target even on
+    the reopen, requiring another cycle - there's no reliable way to
+    verify a projector's actual pixel content from outside (capturing a
+    D3D-rendered fullscreen window via GDI is itself unreliable), so this
+    just retries blind up to REOPEN_ATTEMPTS times rather than trying to
+    detect success. Windows only; a no-op elsewhere."""
+    if not _IS_WIN:
+        return
+
+    for attempt in range(1, REOPEN_ATTEMPTS + 1):
+        log.info("Reopen attempt %d/%d for %s...", attempt, REOPEN_ATTEMPTS, spec["label"])
+        if not _reopen_once(client, spec):
+            return  # nothing more we can do (window never found, or wouldn't close)
 
 
 def main() -> None:
