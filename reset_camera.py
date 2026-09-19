@@ -4,19 +4,31 @@ hub, then toggling it in OBS a few times - reproduces the confirmed-working
 manual fix (physical unplug/replug, then a couple of OBS Deactivate/
 Activate passes) entirely from software.
 
-Run SYNCHRONOUSLY from start_obs.cmd, before open_projector.py, every
-time OBS starts - gated by settings.resetCameraOnStart (a no-op that just
-logs and exits immediately when False, without even connecting to OBS -
-harmless to always call from start_obs.cmd regardless of whether a given
-deployment has a camera/hub at all). Must finish before open_projector.py
-opens any scene/source projector containing the camera: confirmed on a
-real deployment that toggling the camera source off/on here, after such a
-projector was already open, left that projector stuck showing a blank
-feed even once the camera itself recovered (the same class of
-stuck-render bug open_projector.py's own close-and-reopen fix targets,
-just triggered by the source's enable/disable cycle instead of OBS's
-startup race). Can also be run manually on its own, e.g. when the
-camera's dead outside of a fresh OBS launch.
+Run in TWO SEPARATE synchronous steps from start_obs.cmd, with
+open_projector.py run in between - gated by settings.resetCameraOnStart
+(a no-op that just logs and exits immediately when False, without even
+connecting to OBS - harmless to always call regardless of whether a given
+deployment has a camera/hub at all):
+
+    reset_camera.py power-cycle    (before open_projector.py)
+    open_projector.py
+    reset_camera.py toggle         (after open_projector.py)
+
+Why split like this: the OBS-side toggle only actually reinitializes the
+capture device if the scene containing it is currently being shown by
+something (Program, Preview, or an open projector) at the moment of the
+toggle - confirmed on a real deployment where the camera lived in a scene
+that's neither Program nor Preview at boot, only reachable via its own
+dedicated projector. Toggling before that projector was ever opened did
+nothing (no error - the API call just doesn't reinitialize the device
+when nothing's watching that scene), and no amount of retrying to
+close/reopen the projector window afterward fixed it either (that fixes
+a different bug - a stuck window render target - not a device that was
+never actually reinitialized in the first place). Toggling again once the
+projector was open (matching the user's own manual deactivate/reactivate
+fix) is what actually worked. Running with no argument does both steps
+back to back, which is fine for a manual/standalone run where the camera
+is likely already shown by something.
 
 --- Hardware step ---
 Requires a StarTech managed USB hub (5G4AINDRM-USB-A-HUB) with its
@@ -53,6 +65,7 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import sys
 import time
 
 import obsws_python as obs
@@ -215,15 +228,44 @@ def toggle_camera_in_obs() -> None:
             time.sleep(CAMERA_TOGGLE_RETRY_INTERVAL_SEC)
 
 
-def main() -> None:
-    log.info("=== reset_camera.py starting ===")
+def main(argv=None) -> None:
+    """Usage: reset_camera.py [power-cycle|toggle]
+
+    With no argument, does both steps back to back (the original
+    behavior - fine for a manual/standalone run, or for a camera that's
+    already actively shown by something in OBS when this runs).
+
+    start_obs.cmd instead calls the two steps separately, with
+    open_projector.py run in between - see that .cmd file's comments and
+    this module's docstring for why: the OBS-side toggle only actually
+    reinitializes the capture device if the scene containing it is
+    currently being shown by something (Program, Preview, or an open
+    projector) at the moment of the toggle. Confirmed on a real
+    deployment where the camera lived in a scene that's neither Program
+    nor Preview at boot (only reachable via its own dedicated
+    projector): toggling before that projector was open did nothing
+    (silently - no error, the API call just doesn't reinitialize the
+    device when the scene isn't showing), and no amount of retrying to
+    close/reopen the projector window afterward fixed it either, since
+    the device itself had genuinely never been reinitialized - only
+    toggling it again once the projector was actually open (matching the
+    user's own manual deactivate/reactivate fix) worked.
+    """
+    argv = sys.argv[1:] if argv is None else argv
+    mode = argv[0] if argv else "both"
+    if mode not in ("both", "power-cycle", "toggle"):
+        raise SystemExit("Usage: reset_camera.py [power-cycle|toggle]")
+
+    log.info("=== reset_camera.py starting (mode=%s) ===", mode)
 
     if not getattr(settings, "resetCameraOnStart", False):
         log.info("settings.resetCameraOnStart is False - nothing to do.")
         return
 
-    power_cycle_camera_port()
-    toggle_camera_in_obs()
+    if mode in ("both", "power-cycle"):
+        power_cycle_camera_port()
+    if mode in ("both", "toggle"):
+        toggle_camera_in_obs()
     log.info("Done.")
 
 
