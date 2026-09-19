@@ -32,17 +32,36 @@ straight from OBS's own saved-projector list, the same data behind its
 "Save projectors on exit" feature (turned off above only to stop OBS's
 own broken auto-restore; the data itself is still what we key off of).
 That list lives in the active scene collection's file, e.g.
-"%APPDATA%\\obs-studio\\basic\\scenes\\Untitled.json", under the
-"saved_projectors" key - each entry has a "type" (0=Source, 2=Preview,
-3=Program - see obs-studio's ProjectorType enum) and "monitor" index,
-plus a "name" for Source-type entries. To change which projectors open
-on startup, just arrange them the way you want in OBS (drag each
-projector to its monitor), then close OBS once with "Save projectors on
-exit" temporarily turned back on so it writes this list - then turn it
-back off again. No settings.py changes needed for this.
+"basic\\scenes\\Untitled.json", under the "saved_projectors" key - each
+entry has a "type" (0=Source, 2=Preview, 3=Program - see obs-studio's
+ProjectorType enum) and "monitor" index, plus a "name" for Source-type
+entries.
 
-If OBS hasn't saved any projectors yet (e.g. a fresh machine), this falls
-back to just opening the Program projector on settings.obsProjectorMonitor.
+IMPORTANT: we read this from the settings BACKUP
+("%USERPROFILE%\\Documents\\Neuronic\\settings-backup\\obs-studio\\basic\\
+scenes\\..."), not OBS's live config under %APPDATA%. Confirmed on a real
+deployment that OBS blanks saved_projectors in the live file within a few
+seconds of loading a scene collection whenever SaveProjectors is false in
+user.ini (which disable_obs_save_projectors.py now forces before every
+launch, to stop OBS's own broken native restore - see above) - so by the
+time this script gets around to checking, the live copy has often already
+been wiped, even though it was correctly restored from the backup moments
+earlier. The backup copy is never touched by a running OBS, so it's the
+only reliable place to read this from. Falls back to the live path if no
+backup folder exists at all (a deployment not using the backup/restore
+mechanism).
+
+To change which projectors open on startup: arrange them the way you want
+in OBS (drag each projector to its monitor) with "Save projectors on
+exit" temporarily turned back on, close OBS normally so it writes the
+list, then run backup_obs_settings.cmd to refresh the backup with that
+list (start_obs.cmd's restore step will otherwise keep overwriting your
+live changes with the old backup anyway). No settings.py changes needed
+for this.
+
+If no saved projectors are found at all (e.g. a fresh machine with no
+backup yet), this falls back to just opening the Program projector on
+settings.obsProjectorMonitor.
 
 Note: the webcam-not-reconnecting-on-startup problem is handled
 separately, by reset_camera.py - toggling the source in OBS alone isn't
@@ -99,13 +118,33 @@ PASSWORD = getattr(settings, "obsPassword", "")
 # brand new machine that's never had projectors arranged/saved in OBS).
 PROGRAM_MONITOR_INDEX = int(getattr(settings, "obsProjectorMonitor", 2))
 
-# Where OBS keeps its scene collection files - each one's own "name"
-# field (checked against obs-websocket's reported current collection
-# name) identifies which file is the active one, and its
-# "saved_projectors" array is what we read. Windows only.
-SCENE_COLLECTIONS_DIR = (
+# Where to look for scene collection files - each one's own "name" field
+# (checked against obs-websocket's reported current collection name)
+# identifies which file is the active one, and its "saved_projectors"
+# array is what we read. Checked in this order:
+#   1. The settings BACKUP's copy - a static snapshot OBS never touches
+#      while running, so it can't have been blanked out from under us
+#      (see module docstring for why the live copy is unreliable here).
+#   2. OBS's own live config, as a fallback for a deployment with no
+#      settings-backup folder at all.
+# Windows only.
+_OBS_BACKUP_SCENES_DIR = (
+    os.path.join(
+        os.environ.get("USERPROFILE", ""),
+        "Documents", "Neuronic", "settings-backup", "obs-studio", "basic", "scenes",
+    ) if _IS_WIN else None
+)
+_OBS_LIVE_SCENES_DIR = (
     os.path.expandvars(r"%APPDATA%\obs-studio\basic\scenes") if _IS_WIN else None
 )
+
+
+def _scene_collections_dirs() -> list:
+    dirs = []
+    for d in (_OBS_BACKUP_SCENES_DIR, _OBS_LIVE_SCENES_DIR):
+        if d and os.path.isdir(d):
+            dirs.append(d)
+    return dirs
 
 # OBS's ProjectorType enum (frontend/widgets/OBSProjector.hpp) - the
 # "type" value in each saved_projectors entry.
@@ -150,27 +189,30 @@ def wait_for_obs() -> obs.ReqClient:
 def _find_scene_collection_file(collection_name: str):
     """Find the scene collection .json file matching collection_name, by
     checking each file's own "name" field - more reliable than trying to
-    reconstruct OBS's filename-sanitizing rules ourselves. Returns the
-    path, or None."""
-    if not SCENE_COLLECTIONS_DIR:
-        return None
-    for path in glob.glob(os.path.join(SCENE_COLLECTIONS_DIR, "*.json")):
-        try:
-            with open(path, "r", encoding="utf-8-sig") as f:
-                data = json.load(f)
-        except Exception:
-            log.exception("Could not read/parse scene collection file %s", path)
-            continue
-        if data.get("name") == collection_name:
-            return path
+    reconstruct OBS's filename-sanitizing rules ourselves. Searches the
+    backup scenes dir first, then the live one (see
+    _scene_collections_dirs). Returns the path, or None."""
+    for scenes_dir in _scene_collections_dirs():
+        for path in glob.glob(os.path.join(scenes_dir, "*.json")):
+            try:
+                with open(path, "r", encoding="utf-8-sig") as f:
+                    data = json.load(f)
+            except Exception:
+                log.exception("Could not read/parse scene collection file %s", path)
+                continue
+            if data.get("name") == collection_name:
+                return path
     return None
 
 
 def _load_saved_projectors(client: obs.ReqClient) -> list:
     """Read the projector list OBS itself last saved for the active scene
     collection - see module docstring for why this (rather than
-    settings.py fields) is what drives which projectors get opened."""
-    if not SCENE_COLLECTIONS_DIR:
+    settings.py fields) is what drives which projectors get opened, and
+    why it's read from the settings backup rather than OBS's live
+    config."""
+    dirs = _scene_collections_dirs()
+    if not dirs:
         return []
 
     try:
@@ -183,8 +225,8 @@ def _load_saved_projectors(client: obs.ReqClient) -> list:
     path = _find_scene_collection_file(collection_name)
     if not path:
         log.warning(
-            "Could not find the scene collection file for %r under %s - "
-            "no saved projectors to open.", collection_name, SCENE_COLLECTIONS_DIR,
+            "Could not find the scene collection file for %r under any of %s - "
+            "no saved projectors to open.", collection_name, dirs,
         )
         return []
 
