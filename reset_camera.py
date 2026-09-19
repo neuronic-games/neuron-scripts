@@ -149,16 +149,58 @@ def wait_for_obs() -> obs.ReqClient:
     )
 
 
-def toggle_camera_in_obs() -> None:
-    client = wait_for_obs()
-    scene_name = client.get_current_program_scene().current_program_scene_name
-    log.info("Current program scene: %s", scene_name)
+def find_camera_scene(client: obs.ReqClient, source_name: str):
+    """Find a scene containing a scene item named source_name, so the
+    camera can be toggled even when it only lives in a scene that isn't
+    the current Program scene at boot (e.g. a dedicated "Raw Scene" that
+    gets opened via its own projector, separate from whatever Program
+    happens to be showing at startup - confirmed on a real deployment
+    where this mismatch silently skipped the toggle entirely). Checks
+    the current program scene first (fast path, and matches the
+    original/common case), then falls back to scanning every scene.
+    Returns (scene_name, scene_item_id), or (None, None) if not found
+    anywhere."""
+    try:
+        program_scene = client.get_current_program_scene().current_program_scene_name
+    except Exception:
+        program_scene = None
+
+    if program_scene:
+        try:
+            item_id = client.get_scene_item_id(program_scene, source_name).scene_item_id
+            return program_scene, item_id
+        except Exception:
+            log.info(
+                "'%s' not in current program scene '%s' - checking other scenes...",
+                source_name, program_scene,
+            )
 
     try:
-        item_id = client.get_scene_item_id(scene_name, CAMERA_NAME).scene_item_id
-    except Exception as e:
-        log.warning("Could not find source '%s' in scene '%s': %s", CAMERA_NAME, scene_name, e)
+        scene_names = [s["sceneName"] for s in client.get_scene_list().scenes]
+    except Exception:
+        log.exception("Could not get the scene list from OBS")
+        return None, None
+
+    for scene_name in scene_names:
+        if scene_name == program_scene:
+            continue  # already checked above
+        try:
+            item_id = client.get_scene_item_id(scene_name, source_name).scene_item_id
+            return scene_name, item_id
+        except Exception:
+            continue
+
+    return None, None
+
+
+def toggle_camera_in_obs() -> None:
+    client = wait_for_obs()
+
+    scene_name, item_id = find_camera_scene(client, CAMERA_NAME)
+    if item_id is None:
+        log.warning("Could not find source '%s' in any scene - nothing to toggle.", CAMERA_NAME)
         return
+    log.info("Found '%s' in scene '%s' (scene item %s)", CAMERA_NAME, scene_name, item_id)
 
     for attempt in range(1, CAMERA_TOGGLE_ATTEMPTS + 1):
         log.info(
