@@ -33,9 +33,9 @@ straight from OBS's own saved-projector list, the same data behind its
 own broken auto-restore; the data itself is still what we key off of).
 That list lives in the active scene collection's file, e.g.
 "basic\\scenes\\Untitled.json", under the "saved_projectors" key - each
-entry has a "type" (0=Source, 2=Preview, 3=Program - see obs-studio's
-ProjectorType enum) and "monitor" index, plus a "name" for Source-type
-entries.
+entry has a "type" (0=Source, 1=Scene, 2=Preview, 3=Program - see
+obs-studio's ProjectorType enum) and "monitor" index, plus a "name" for
+Source/Scene-type entries.
 
 IMPORTANT: we read this from the settings BACKUP
 ("%USERPROFILE%\\Documents\\Neuronic\\settings-backup\\obs-studio\\basic\\
@@ -250,8 +250,7 @@ def _spec_from_saved_entry(entry: dict):
     vs OBS 32.x "Projector - Program" - matching multiple required
     substrings survives that), and an open(client) callable. Returns
     None for anything we don't know how to (re)open (windowed
-    projectors, Scene/Multiview types, or a Source entry missing its
-    source name)."""
+    projectors, Multiview, or a Source/Scene entry missing its name)."""
     ptype = entry.get("type")
     monitor = entry.get("monitor")
     name = entry.get("name")
@@ -285,6 +284,20 @@ def _spec_from_saved_entry(entry: dict):
         return {
             "label": "Source: %s" % name,
             "title_substrs": ("Projector", "Source", name),
+            "open": lambda client: client.open_source_projector(name, monitor_index=monitor),
+        }
+
+    if ptype == _TYPE_SCENE:
+        # Scenes are just a special kind of source in OBS under the hood,
+        # so the same OpenSourceProjector request works for them too -
+        # only the window title ("Projector - Scene: <name>" rather than
+        # "... Source: <name>") differs.
+        if not name:
+            log.warning("Skipping a saved Scene projector with no scene name: %r", entry)
+            return None
+        return {
+            "label": "Scene: %s" % name,
+            "title_substrs": ("Projector", "Scene", name),
             "open": lambda client: client.open_source_projector(name, monitor_index=monitor),
         }
 
