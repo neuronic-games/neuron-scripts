@@ -13,18 +13,20 @@ Projectors) so OBS doesn't also open its own stuck/black projector.
 
 Even opened this way (after waiting for OBS to connect, plus an extra
 settle delay), the projector window can still come up permanently blank -
-this is the same underlying OBS/Qt bug, just less likely to hit. A
-projector window that's blank because nothing ever painted it doesn't
-self-heal; it only starts showing video once something forces Qt/OBS to
-actually resize (and thus repaint) it - which is why manually dragging a
-corner of the window by even a pixel is the fix people report. Minimizing
-and restoring does NOT work here (confirmed on a real deployment): the
-window comes back at the exact same size, so Qt never fires a
-resizeEvent and OBS never recreates the render target. Since this runs
-unattended, on Windows we do the actual fix ourselves right after opening
-the projector: find its window by title and shrink it by a couple pixels
-then resize it back to its original size, which forces a real
-resizeEvent both ways.
+this is the same underlying OBS/Qt bug, just less likely to hit. Confirmed
+on a real deployment that this is not a "hasn't been asked to repaint yet"
+problem: neither minimizing/restoring nor shrink-then-resize (both of
+which force a genuine Qt resizeEvent) fix it. So whatever's actually
+broken is the render target/output OBS attached to that specific
+projector instance at creation time, during the startup race - not
+something a resize-driven repaint can fix from outside. The one thing
+that IS reported to reliably fix it is closing that broken projector and
+opening a fresh one, since a newly-created projector goes through OBS's
+normal (working) setup path again - and by the time we do this, OBS has
+had several more seconds to finish starting up, so the same race is much
+less likely to hit twice. Since this runs unattended, on Windows we do
+that ourselves: find the projector window by title, close it, then ask
+OBS to open a new Program projector.
 
 Note: the webcam-not-reconnecting-on-startup problem is handled
 separately, by reset_camera.py - toggling the source in OBS alone isn't
@@ -98,10 +100,11 @@ PROJECTOR_WINDOW_TITLE_SUBSTRS = ("Projector", "Program")
 FIND_WINDOW_TIMEOUT_SEC = 10   # how long to wait for the projector window
                                 # to actually appear before giving up
 FIND_WINDOW_POLL_SEC = 0.5
-NUDGE_SETTLE_SEC = 0.3         # pause between the shrink and the resize-back
-NUDGE_SHRINK_PX = 2            # how many pixels to shrink by - small enough
-                                # to not be visible, big enough to guarantee
-                                # a real size change (and thus a resizeEvent)
+CLOSE_TIMEOUT_SEC = 5          # how long to wait for the old projector
+                                # window to actually finish closing
+REOPEN_DELAY_SEC = 3           # extra pause after closing, before asking
+                                # OBS to open a fresh one - gives OBS's
+                                # video subsystem more time to be ready
 
 
 def wait_for_obs() -> obs.ReqClient:
@@ -159,14 +162,27 @@ def _find_projector_hwnd(title_substrs, timeout_sec: float):
     return found["hwnd"]
 
 
-def _nudge_projector_repaint() -> None:
-    """Work around the OBS/Qt bug where a projector window opened
-    programmatically renders permanently blank/black - never on its own,
-    only once something forces a real resize (and thus a Qt repaint) of
-    the window. Shrinks the window by a couple pixels, then resizes it
-    back to its original size/position - two genuine size changes,
-    equivalent to manually dragging a corner. Windows only; a no-op
-    elsewhere."""
+def _close_window(hwnd) -> None:
+    WM_CLOSE = 0x0010
+    ctypes.windll.user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)
+
+
+def _wait_until_closed(hwnd, timeout_sec: float) -> bool:
+    user32 = ctypes.windll.user32
+    deadline = time.time() + timeout_sec
+    while time.time() < deadline:
+        if not user32.IsWindow(hwnd):
+            return True
+        time.sleep(0.2)
+    return not user32.IsWindow(hwnd)
+
+
+def _reopen_if_blank(client: obs.ReqClient) -> None:
+    """Close the projector window we just opened and open a fresh one in
+    its place. Works around the OBS/Qt bug where a projector opened
+    right at OBS startup renders permanently blank/black - see module
+    docstring for why this (rather than a resize-driven repaint) is the
+    actual fix. Windows only; a no-op elsewhere."""
     if not _IS_WIN:
         return
 
@@ -174,33 +190,26 @@ def _nudge_projector_repaint() -> None:
     if not hwnd:
         log.warning(
             "Could not find the projector window (title containing all of %r) "
-            "within %ss to nudge it - it may come up blank. It may just need "
-            "more time to appear, or its title may not match on this OBS version.",
+            "within %ss to close/reopen it - it may come up blank. It may just "
+            "need more time to appear, or its title may not match on this OBS "
+            "version.",
             PROJECTOR_WINDOW_TITLE_SUBSTRS, FIND_WINDOW_TIMEOUT_SEC,
         )
         return
 
-    user32 = ctypes.windll.user32
-    rect = wintypes.RECT()
-    if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-        log.warning("GetWindowRect failed for hwnd=%s - skipping nudge.", hwnd)
+    log.info("Closing projector window (hwnd=%s) so we can reopen it fresh...", hwnd)
+    _close_window(hwnd)
+
+    if not _wait_until_closed(hwnd, CLOSE_TIMEOUT_SEC):
+        log.warning(
+            "Projector window (hwnd=%s) did not close within %ss - leaving "
+            "it as-is, not attempting to reopen.", hwnd, CLOSE_TIMEOUT_SEC,
+        )
         return
 
-    x, y = rect.left, rect.top
-    w, h = rect.right - rect.left, rect.bottom - rect.top
-    log.info(
-        "Found projector window (hwnd=%s, %sx%s at %s,%s) - shrinking then "
-        "resizing back to force a repaint...", hwnd, w, h, x, y,
-    )
-
-    SWP_NOZORDER = 0x0004
-    SWP_NOACTIVATE = 0x0010
-    flags = SWP_NOZORDER | SWP_NOACTIVATE
-
-    user32.SetWindowPos(hwnd, 0, x, y, max(w - NUDGE_SHRINK_PX, 1), h, flags)
-    time.sleep(NUDGE_SETTLE_SEC)
-    user32.SetWindowPos(hwnd, 0, x, y, w, h, flags)
-    log.info("Nudge done.")
+    log.info("Closed. Waiting %ss before opening a fresh projector...", REOPEN_DELAY_SEC)
+    time.sleep(REOPEN_DELAY_SEC)
+    open_projector(client)
 
 
 def main() -> None:
@@ -212,7 +221,7 @@ def main() -> None:
     time.sleep(STARTUP_SETTLE_DELAY_SEC)
 
     open_projector(client)
-    _nudge_projector_repaint()
+    _reopen_if_blank(client)
 
     log.info("Done.")
 
