@@ -6,6 +6,29 @@
 set "OBS_BACKUP=%USERPROFILE%\Documents\Neuronic\settings-backup\obs-studio"
 set "OBS_SETTINGS=%appdata%\obs-studio"
 
+:: Always make sure no existing OBS instance is still running before doing
+:: anything else. Launching a second instance on top of one that's still
+:: up just shows OBS's own "OBS is already running!" dialog, which sits
+:: there waiting for a click and blocks the new instance from ever
+:: starting its WebSocket server - every script below that waits on the
+:: WebSocket then fails/times out. Confirmed on a real deployment: this
+:: used to only happen inside restore_obs_settings.cmd below, which only
+:: runs if a settings backup already exists - on a machine/profile
+:: without one yet (e.g. a fresh Administrator account), OBS was never
+:: closed at all. Unconditional and independent of the backup existing.
+tasklist /FI "IMAGENAME eq obs64.exe" 2>nul | find /I "obs64.exe" >nul
+if not errorlevel 1 (
+    echo Closing the existing OBS instance...
+    taskkill /IM obs64.exe >nul 2>&1
+    timeout /t 5 /nobreak >nul
+    tasklist /FI "IMAGENAME eq obs64.exe" 2>nul | find /I "obs64.exe" >nul
+    if not errorlevel 1 (
+        echo OBS did not close in time - forcing it closed.
+        taskkill /IM obs64.exe /F >nul 2>&1
+        timeout /t 2 /nobreak >nul
+    )
+)
+
 :: If a known-good settings backup exists, restore it before launching, so
 :: OBS always starts from that baseline instead of whatever state it was
 :: last left in. Reuses restore_obs_settings.cmd in silent mode (/Y skips
