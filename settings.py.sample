@@ -27,6 +27,12 @@ appName = '???'  # e.g. Skeletal Pop
 appEXEPath = r'' # e.g. r'C:/Users/admin/Neuronic/Apps/Skeletal Pop/Skeletal Pop Win'
 appEXEName = '' # e.g. skeletal-pop.exe
 
+# Command-line arguments guard.py passes to appEXEName when launching it
+# (not used for the Chrome-kiosk case - see appURL below). A list, since
+# an app can need more than one, e.g. ["-fullscreen", "-vrmode"]. Leave
+# as [] if the app needs no arguments.
+appEXEParam = []
+
 # Background color of that lock window - a Tk color string, e.g. a hex
 # code or a name like "black".
 lockScreenColor = "#403a7a"
