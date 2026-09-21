@@ -43,6 +43,13 @@ if _IS_WIN:
 # ── Settings ──────────────────────────────────────────────────────────────────
 APP_EXE_PATH  = getattr(settings, 'appEXEPath',        '')
 APP_EXE_NAME  = getattr(settings, 'appEXEName',        '')
+# Command-line arguments passed to APP_EXE_NAME when guard.py launches it
+# (not used for the Chrome-kiosk case, which has its own hardcoded flags).
+# Expected as a list (e.g. ["-fullscreen", "-vrmode"]) since an app can
+# need more than one; a bare string is also accepted and treated as a
+# single argument, in case someone sets it that way by mistake.
+_app_exe_param_raw = getattr(settings, 'appEXEParam', [])
+APP_EXE_PARAMS = [_app_exe_param_raw] if isinstance(_app_exe_param_raw, str) else list(_app_exe_param_raw)
 crash_path    = getattr(settings, 'crashPath',         'crash.log')
 logo_brand    = getattr(settings, 'logoBrand',         'neuronic.png')
 
@@ -247,14 +254,15 @@ def getTaskProcess(stop_event):
                             ['google-chrome', '--kiosk', url])
                 else:
                     path = os.path.join(APP_EXE_PATH, APP_EXE_NAME)
-                    print(f'Starting: {path}')
+                    cmd = [path] + APP_EXE_PARAMS
+                    print(f'Starting: {" ".join(cmd)}')
                     if _IS_WIN:
                         info = subprocess.STARTUPINFO()
                         info.dwFlags    = subprocess.STARTF_USESHOWWINDOW
                         info.wShowWindow = 3  # SW_MAXIMIZE
-                        subprocess.Popen(path, startupinfo=info)
+                        subprocess.Popen(cmd, startupinfo=info)
                     else:
-                        subprocess.Popen([path])
+                        subprocess.Popen(cmd)
                 logging.info(f'{datetime.now()}: App Restarted')
             elif 'Not Responding' in res:
                 print(f'{APP_EXE_NAME} not responding — restarting...')
