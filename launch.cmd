@@ -56,6 +56,19 @@ echo Checking for app archive updates...
 py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\archive_update.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Start OBS Studio, for exhibits that use it (settings.startObs)
+
+py -3 -c "import settings_loader, settings, sys; sys.exit(0 if getattr(settings, 'startObs', False) else 1)"
+if not errorlevel 1 (
+    echo.
+    echo Starting OBS...
+    call "%USERPROFILE%\Documents\Neuronic\neuron-scripts\start_obs.cmd"
+) else (
+    echo.
+    echo settings.startObs is False - skipping OBS.
+)
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Report status into Google Sheet
 
 echo.

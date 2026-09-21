@@ -49,6 +49,10 @@ checkForUpdate = False
 crashPath = "crash.log"
 
 # --- OBS / camera settings (used by open_projector.py and reset_camera.py) ---
+# Whether launch.cmd runs start_obs.cmd at all. Leave False for exhibits
+# that don't use OBS - the rest of this section is unused in that case.
+startObs = False
+
 # OBS WebSocket connection (Tools > WebSocket Server Settings in OBS)
 obsHost = "127.0.0.1"
 obsPort = 4455
