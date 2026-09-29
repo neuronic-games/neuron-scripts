@@ -63,13 +63,17 @@ echo
 echo "Starting pulse monitor (status reports)..."
 nohup python3 "$NEURON_DIR/pulse.py" >/dev/null 2>&1 &
 
-# Background folder cleanup (settings.cleanupFolders) - a no-op that
-# exits immediately if that setting is empty, so it's safe to always
-# start.
+# Background folder cleanup - only started if settings.cleanupFolders is
+# non-empty.
 
-echo
-echo "Starting background folder cleanup..."
-nohup python3 "$NEURON_DIR/clean_up_folder.py" --loop >/dev/null 2>&1 &
+if python3 -c "import settings_loader, settings, sys; sys.exit(0 if getattr(settings, 'cleanupFolders', []) else 1)"; then
+    echo
+    echo "Starting background folder cleanup..."
+    nohup python3 "$NEURON_DIR/clean_up_folder.py" --loop >/dev/null 2>&1 &
+else
+    echo
+    echo "settings.cleanupFolders is empty - skipping background cleanup."
+fi
 
 # Optional per-deployment hook to launch any auxiliary apps this exhibit
 # needs, before guard.py locks down the desktop. Not required - only runs

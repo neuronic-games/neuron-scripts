@@ -76,13 +76,18 @@ echo Starting pulse monitor (status reports)...
 start /min cmd /c py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\pulse.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Background folder cleanup (settings.cleanupFolders) - a no-op that
-:: exits immediately if that setting is empty, so it's safe to always
-:: start.
+:: Background folder cleanup - only started if settings.cleanupFolders is
+:: non-empty.
 
-echo.
-echo Starting background folder cleanup...
-start /min cmd /c py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\clean_up_folder.py" --loop
+py -3 -c "import settings_loader, settings, sys; sys.exit(0 if getattr(settings, 'cleanupFolders', []) else 1)"
+if not errorlevel 1 (
+    echo.
+    echo Starting background folder cleanup...
+    start /min cmd /c py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\clean_up_folder.py" --loop
+) else (
+    echo.
+    echo settings.cleanupFolders is empty - skipping background cleanup.
+)
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Optional per-deployment hook to launch any auxiliary apps this exhibit
