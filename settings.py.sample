@@ -136,7 +136,9 @@ videoTargetFps = 30
 
 # Default age cutoff, in days, for clean_up_folder.py - files whose
 # last-modified time is older than this many days are deleted. Can be
-# overridden per-run via clean_up_folder.py's own command-line argument.
+# overridden per-run via clean_up_folder.py's own command-line arguments,
+# e.g. `clean_up_folder.py <folder> 6 --unit hours` or `... 30 --unit
+# minutes` to clean up on a shorter cycle than a full day.
 cleanupMaxAgeDays = 1
 
 # ============================================================================
