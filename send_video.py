@@ -43,16 +43,24 @@ TARGET_FPS = int(getattr(settings, "videoTargetFps", 30))
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 3:
-        raise ValueError("Usage: send_video.py <video_file> <number>")
+    # Any failure while parsing/validating the arguments (wrong count, bad
+    # number, video/intro/outro file not found) gets the actual arguments
+    # the script was called with appended to it, so a bad call from another
+    # script/scheduled task shows up in the log with enough to debug it
+    # instead of just "file not found".
+    try:
+        if len(argv) != 3:
+            raise ValueError("Usage: send_video.py <video_file> <number>")
 
-    video = Path(argv[1]).resolve(strict=True)
-    number = argv[2]
-    if not int(number) > 0:
-        raise ValueError("number must be positive")
+        video = Path(argv[1]).resolve(strict=True)
+        number = argv[2]
+        if not int(number) > 0:
+            raise ValueError("number must be positive")
 
-    intro = (INTRO_DIR / f"{number}.mp4").resolve(strict=True)
-    outro = (OUTRO_DIR / f"{number}.mp4").resolve(strict=True)
+        intro = (INTRO_DIR / f"{number}.mp4").resolve(strict=True)
+        outro = (OUTRO_DIR / f"{number}.mp4").resolve(strict=True)
+    except Exception as exc:
+        raise ValueError(f"{exc} (arguments given: {argv[1:]!r})") from exc
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
