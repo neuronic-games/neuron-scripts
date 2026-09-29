@@ -53,7 +53,7 @@ def main(argv: list[str]) -> int:
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
-    output = OUTPUT_DIR / f"{timestamp}.mp4"
+    output = (OUTPUT_DIR / f"{timestamp}.mp4").resolve(strict=True)
 
     # concat *filter* (not the -f concat demuxer) - this decodes each clip
     # independently before joining them, so intro/recording/outro can have
