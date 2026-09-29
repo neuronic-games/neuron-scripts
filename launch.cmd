@@ -76,6 +76,15 @@ echo Starting pulse monitor (status reports)...
 start /min cmd /c py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\pulse.py"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Background folder cleanup (settings.cleanupFolders) - a no-op that
+:: exits immediately if that setting is empty, so it's safe to always
+:: start.
+
+echo.
+echo Starting background folder cleanup...
+start /min cmd /c py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\clean_up_folder.py" --loop
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Optional per-deployment hook to launch any auxiliary apps this exhibit
 :: needs, before guard.py locks down the desktop. Not required - only runs
 :: if launch_aux.cmd actually exists (copy launch_aux.cmd.sample to
