@@ -22,8 +22,11 @@ videoOutputDir, ffmpegPath.
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -53,7 +56,9 @@ def main(argv: list[str]) -> int:
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
-    output = (OUTPUT_DIR / f"{timestamp}.mp4").resolve(strict=True)
+    # Not strict=True: unlike intro/video/outro, this file doesn't exist yet
+    # - it's the one we're about to create.
+    output = (OUTPUT_DIR / f"{timestamp}.mp4").resolve()
 
     # concat *filter* (not the -f concat demuxer) - this decodes each clip
     # independently before joining them, so intro/recording/outro can have
@@ -86,30 +91,54 @@ def main(argv: list[str]) -> int:
     filter_complex = ";".join(per_clip_filters)
     filter_complex += f";{''.join(concat_inputs)}concat=n=3:v=1:a=1[outv][outa]"
 
+    # Render to a temp file first, then move the finished file into
+    # videoOutputDir as a last step. ffmpeg takes several seconds to
+    # re-encode - writing straight to `output` would mean anything watching
+    # videoOutputDir (or a viewer opening the file early) could see a
+    # partially-written file sitting under its final name and mistake it
+    # for a finished (but broken/truncated) video. Rendering elsewhere and
+    # only placing the file at `output` once ffmpeg has fully succeeded
+    # avoids that window - the file only ever appears in videoOutputDir
+    # once it's complete.
+    tmp_fd, tmp_path_str = tempfile.mkstemp(suffix=".mp4", prefix="send_video_")
+    os.close(tmp_fd)
+    tmp_path = Path(tmp_path_str)
+
     try:
-        subprocess.run(
-            [
-                FFMPEG_PATH,
-                "-i", str(intro),
-                "-i", str(video),
-                "-i", str(outro),
-                "-filter_complex", filter_complex,
-                "-map", "[outv]",
-                "-map", "[outa]",
-                "-c:v", "libx264",
-                "-preset", "veryfast",
-                "-crf", "18",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-movflags", "+faststart",
-                str(output),
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f"ffmpeg failed: {exc.stderr}") from exc
+        try:
+            subprocess.run(
+                [
+                    FFMPEG_PATH,
+                    "-y",  # overwrite the empty placeholder mkstemp() created
+                    "-i", str(intro),
+                    "-i", str(video),
+                    "-i", str(outro),
+                    "-filter_complex", filter_complex,
+                    "-map", "[outv]",
+                    "-map", "[outa]",
+                    "-c:v", "libx264",
+                    "-preset", "veryfast",
+                    "-crf", "18",
+                    "-c:a", "aac",
+                    "-b:a", "192k",
+                    "-movflags", "+faststart",
+                    str(tmp_path),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(f"ffmpeg failed: {exc.stderr}") from exc
+
+        # shutil.move (not os.replace) since the system temp dir and
+        # videoOutputDir may be on different drives/filesystems - move()
+        # falls back to a copy+delete in that case, os.replace() would just
+        # raise.
+        shutil.move(str(tmp_path), str(output))
+    finally:
+        # Only still present if we raised before the move above succeeded.
+        tmp_path.unlink(missing_ok=True)
 
     print(str(output))
     return 0
