@@ -145,9 +145,8 @@ cleanupMaxAgeDays = 1
 
 # Folders to clean up automatically in the background, forever, via
 # `clean_up_folder.py --loop` - started by launch.cmd/launch.sh alongside
-# pulse.py. It's a no-op (exits immediately) if this list is empty, so
-# it's safe to always start regardless of whether a given deployment
-# needs cleanup.
+# pulse.py, but only when this list is non-empty (they check it before
+# starting anything). Leave as [] for deployments that don't need cleanup.
 #
 # Each entry is either a plain folder path (uses the defaults below), or
 # a dict overriding any of maxAge/unit/pattern/recursive for that folder

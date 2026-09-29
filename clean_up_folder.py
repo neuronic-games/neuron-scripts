@@ -23,9 +23,9 @@ hours, or minutes.
 settings.cleanupFolders (a list of folders to watch, each with its own
 age/unit/pattern/recursive) and settings.cleanupIntervalSec (how often to
 recheck), looping forever - see settings.py.sample for the exact format.
-It's a no-op (prints a message and exits immediately) if cleanupFolders is
-empty, so launch.cmd/launch.sh can always start it alongside pulse.py
-without every deployment needing it configured.
+It still no-ops (prints a message and exits immediately) if run with
+cleanupFolders empty, but launch.cmd/launch.sh check that setting
+themselves first and only start this at all when it's non-empty.
 
 Examples:
     python clean_up_folder.py "C:\\...\\recordings"
