@@ -1,0 +1,12 @@
+# Python packages used by neuron-scripts.
+# Install with:  py -3 -m pip install -r requirements.txt
+#
+# argparse, zipfile, tkinter, etc. ship with Python 3.11 and need no install.
+
+certifi        # pulse.py - trusted certificates for HTTPS on locked-down kiosks
+wget           # archive_update.py, install.py - download app archives
+keyboard       # guard.py, send_email_bulk.py - Ctrl+Shift+S hotkey
+pyserial       # serial_tcp_client.py
+msal           # oauth365.py - Office 365 / SharePoint sign-in
+requests       # send_to_sharepoint.py
+obsws-python   # OBS scripts (open_projector.py, reset_camera.py, setup_obs.py, ...)
