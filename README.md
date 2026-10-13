@@ -5,6 +5,7 @@ Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch t
 - [What runs on an exhibit](#what-runs-on-an-exhibit)
 - [Install on Windows](#install-on-windows)
   - [Start automatically and add a desktop shortcut](#6-start-the-exhibit-automatically-and-add-a-desktop-shortcut)
+- [Install on Linux](#install-on-linux)
 - [Edit the settings](#edit-the-settings)
 - [Start the exhibit](#start-the-exhibit)
 - [Updating](#updating)
@@ -26,6 +27,8 @@ Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch t
 8. **`guard.py`**: starts the exhibit app full-screen, restarts it if it crashes, and locks the desktop.
 
 Press **Ctrl+Shift+S** to quit the app and unlock the desktop.
+
+On Linux, `launch.sh` does the same, except that it doesn't start OBS and doesn't lock the desktop. See [Install on Linux](#install-on-linux).
 
 ---
 
@@ -122,6 +125,143 @@ You should see two `Created ...` lines: one in `...\Start Menu\Programs\Startup`
 
 ---
 
+## Install on Linux
+
+These steps are for Ubuntu and other Debian-based distributions, run in a **Terminal**.
+
+**How Linux differs from Windows:**
+
+- `launch.sh` starts everything instead of `launch.cmd`.
+- `guard.py` starts the app and restarts it if it crashes, but **doesn't lock the desktop**. The wallpaper, lock screen and logo are Windows-only.
+- `launch.sh` **doesn't start OBS**, so the OBS and camera settings aren't used.
+- **Ctrl+Shift+S usually doesn't work**, because the `keyboard` package needs root access on Linux. Use the stop command in step 6 instead.
+
+### 1. Install Python and Git
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-pip git xdg-user-dirs
+python3 --version
+git --version
+```
+
+You need Python 3.9 or newer.
+
+### 2. Get the scripts
+
+The scripts must live at `~/Documents/Neuronic/neuron-scripts`, because `launch.sh` looks for them there.
+
+```bash
+mkdir -p ~/Documents/Neuronic
+cd ~/Documents/Neuronic
+git clone https://github.com/neuronic-games/neuron-scripts
+cd ~/Documents/Neuronic/neuron-scripts
+```
+
+### 3. Install the Python packages
+
+```bash
+python3 -m pip install --user -r requirements.txt
+```
+
+If you see **`externally-managed-environment`** (common on Ubuntu 23.04 and newer), run this instead:
+
+```bash
+python3 -m pip install --user --break-system-packages -r requirements.txt
+```
+
+### 4. Create your settings file
+
+```bash
+cp settings.py.sample settings.py
+nano settings.py
+```
+
+Edit it as described in [Edit the settings](#edit-the-settings). In nano, press **Ctrl+O** then **Enter** to save, and **Ctrl+X** to exit. On Linux:
+
+- **Paths** use forward slashes and need no `r`: `appEXEPath = '/home/kiosk/Documents/Neuronic/Skeletal Pop/Linux'`.
+- **`appEXEName`** is the app's program file, such as `'skeletal-pop.x86_64'`. Make sure it can run: `chmod +x "/path/to/app/skeletal-pop.x86_64"`.
+- **Web exhibits:** set `appEXEPath = '/opt/google/chrome'` and `appEXEName = 'chrome'`, then put the page in `appURL`. Google Chrome must be installed.
+
+Check the file for mistakes:
+
+```bash
+python3 -c "import settings_loader, settings; print('settings.py OK')"
+```
+
+### 5. Check it works
+
+```bash
+python3 pulse.py
+```
+
+You should see `Monitoring <exhibitName> → https://zapsheets.com/...`, and the machine should appear on PulseBoard within a few seconds. Press **Ctrl+C** to stop.
+
+### 6. Start, stop, and start automatically
+
+**Start the exhibit:**
+
+```bash
+~/Documents/Neuronic/neuron-scripts/launch.sh
+```
+
+To try other settings, run `./launch.sh settings-edit.py`, as described in [Trying settings without changing settings.py](#trying-settings-without-changing-settingspy).
+
+**Stop the exhibit:** stop the scripts, then close the app.
+
+```bash
+pkill -f neuron-scripts/guard.py; pkill -f neuron-scripts/pulse.py; pkill -f neuron-scripts/clean_up_folder.py
+```
+
+> `launch.sh` stops **every** `python3` program for this user when it starts. Don't run other Python programs on an exhibit machine.
+
+**Start automatically at sign-in, and add a desktop shortcut.** Paste this whole block into Terminal:
+
+```bash
+mkdir -p ~/.config/autostart
+cat > ~/.config/autostart/neuron-launcher.desktop <<EOF
+[Desktop Entry]
+Type=Application
+Name=Neuron Launcher
+Comment=Start the Neuronic exhibit
+Exec=$HOME/Documents/Neuronic/neuron-scripts/launch.sh
+Path=$HOME/Documents/Neuronic/neuron-scripts
+Icon=$HOME/Documents/Neuronic/neuron-scripts/logo/neuronic.png
+Terminal=false
+X-GNOME-Autostart-enabled=true
+EOF
+DESK="$(xdg-user-dir DESKTOP)"
+cp ~/.config/autostart/neuron-launcher.desktop "$DESK/"
+chmod +x "$DESK/neuron-launcher.desktop"
+gio set "$DESK/neuron-launcher.desktop" metadata::trusted true 2>/dev/null || true
+```
+
+The first part makes the exhibit start whenever you sign in. The second puts a **Neuron Launcher** icon on the desktop. On Ubuntu, if the icon doesn't run when double-clicked, right-click it and choose **Allow Launching**.
+
+**Sign in automatically.** Like the Windows Startup folder, auto-start only runs once someone signs in. On Ubuntu, open **Settings → Users** (or **System → Users**), click **Unlock**, and turn on **Automatic Login**. Then restart to check the exhibit starts by itself.
+
+**Turn off auto-start:**
+
+```bash
+rm ~/.config/autostart/neuron-launcher.desktop
+```
+
+### Updating on Linux
+
+`launch.sh` runs `git pull` on every start. To update by hand:
+
+```bash
+cd ~/Documents/Neuronic/neuron-scripts
+git pull
+python3 -m pip install --user -r requirements.txt
+```
+
+Add `--break-system-packages` to the last line if you needed it in step 3.
+
+**Extra apps on start:** `launch.sh` runs `launch_aux.sh` before `guard.py`. Add any extra programs to start there.
+
+---
+
 ## Edit the settings
 
 Open the file with:
@@ -144,6 +284,8 @@ notepad "%USERPROFILE%\Documents\Neuronic\neuron-scripts\settings.py"
   py -3 -c "import settings_loader, settings; print('settings.py OK')"
   ```
   If there's an error, it shows the line number.
+
+**On Linux,** paths look different. See step 4 of [Install on Linux](#install-on-linux).
 
 Most exhibits only need the **Required** settings. Every other section is only for exhibits that use that feature.
 
@@ -176,12 +318,12 @@ Most exhibits only need the **Required** settings. Every other section is only f
 
 | Setting | What it does | Default |
 |---|---|---|
-| `logoBrand` | The client logo image, from the `logo` folder. It's shown on the desktop and the lock screen. | `"neuronic.png"` |
-| `lockScreenColor` | The lock screen's background color, as a hex code or a color name. | `"#403a7a"` |
+| `logoBrand` | The client logo image, from the `logo` folder. It's shown on the desktop and the lock screen (Windows only). | `"neuronic.png"` |
+| `lockScreenColor` | The lock screen's background color, as a hex code or a color name (Windows only). | `"#403a7a"` |
 | `checkForUpdate` | `True` makes `launch.cmd` check for a newer app version on each start, using `archive.txt` in the app folder. Use it for zipped apps such as Unity builds. | `False` |
 | `crashPath` | The log file `guard.py` writes to, in the scripts folder. | `"crash.log"` |
 
-### OBS and camera (only for exhibits that use OBS)
+### OBS and camera (only for exhibits that use OBS; Windows only)
 
 | Setting | What it does |
 |---|---|
@@ -301,3 +443,7 @@ When new settings are added to `settings.py.sample`, copy the ones you need into
 | Exhibit doesn't start after a reboot | Check there's a shortcut in `shell:startup` and that Windows signs in automatically (step 6). |
 | PowerShell shortcut command fails | Create the shortcuts by hand instead (step 6). |
 | App keeps crashing | Check `crash.log` in the scripts folder. |
+| **Linux:** `externally-managed-environment` when installing packages | Add `--break-system-packages` (Install on Linux, step 3). |
+| **Linux:** `Permission denied` running `launch.sh` | Run `chmod +x ~/Documents/Neuronic/neuron-scripts/launch.sh`. |
+| **Linux:** the app doesn't start | Check `guard.log` in the scripts folder. Make sure the app file can run (`chmod +x`), and that `appEXEPath` and `appEXEName` are right. |
+| **Linux:** `Hotkey not available` in `guard.log` | This is expected without root. Stop the exhibit with the command in Install on Linux, step 6. |
