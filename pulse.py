@@ -16,6 +16,22 @@ _parser.add_argument('--test', action='store_true',
                      help='Send one report, show the result, and exit (doesn\'t clear crash.log).')
 args = _parser.parse_args()
 
+# ── PulseBoard is optional: off when sheetID is blank ────────────────────────
+
+def _setting(name):
+    value = str(getattr(settings, name, '') or '').strip()
+    return '' if value == '???' else value   # '???' is the old placeholder
+
+if not _setting('sheetID'):
+    print('PulseBoard is off (sheetID is blank in settings.py) - no status reports sent.')
+    sys.exit(1 if args.test else 0)
+
+_missing = [n for n in ('sheetName', 'exhibitName') if not _setting(n)]
+if _missing:
+    print(f"PulseBoard: set {' and '.join(_missing)} in settings.py "
+          "(or blank sheetID to turn PulseBoard off) - no status reports sent.")
+    sys.exit(1)
+
 _IS_WIN = sys.platform == 'win32'
 _IS_MAC = sys.platform == 'darwin'
 

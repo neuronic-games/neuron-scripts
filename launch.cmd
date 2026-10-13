@@ -69,11 +69,17 @@ if not errorlevel 1 (
 )
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Report status into Google Sheet
+:: Report status to PulseBoard - optional, only if settings.sheetID is set
 
-echo.
-echo Starting pulse monitor (status reports)...
-start /min cmd /c py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\pulse.py"
+py -3 -c "import settings_loader, settings, sys; sys.exit(0 if str(getattr(settings, 'sheetID', '') or '').strip() else 1)"
+if not errorlevel 1 (
+    echo.
+    echo Starting pulse monitor - PulseBoard status reports...
+    start /min cmd /c py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\pulse.py"
+) else (
+    echo.
+    echo settings.sheetID is blank - PulseBoard is off, skipping status reports.
+)
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Background folder cleanup - only started if settings.cleanupFolders is

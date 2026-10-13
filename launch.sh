@@ -59,9 +59,15 @@ python3 "$NEURON_DIR/archive_update.py"
 
 # Report status into Google Sheet
 
-echo
-echo "Starting pulse monitor (status reports)..."
-nohup python3 "$NEURON_DIR/pulse.py" >/dev/null 2>&1 &
+# PulseBoard is optional - only started if settings.sheetID is set.
+if python3 -c "import settings_loader, settings, sys; sys.exit(0 if str(getattr(settings, 'sheetID', '') or '').strip() else 1)"; then
+    echo
+    echo "Starting pulse monitor (PulseBoard status reports)..."
+    nohup python3 "$NEURON_DIR/pulse.py" >/dev/null 2>&1 &
+else
+    echo
+    echo "settings.sheetID is blank - PulseBoard is off, skipping status reports."
+fi
 
 # Background folder cleanup - only started if settings.cleanupFolders is
 # non-empty.
