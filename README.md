@@ -472,6 +472,7 @@ When new settings are added to `settings.py.sample`, copy the ones you need into
 | `ERROR: Application not found` | `appEXEPath` and `appEXEName` don't point to a real `.exe`. Check both, and check the `r` in front of the path. |
 | `launch.cmd` can't find the scripts | The scripts must be in `%USERPROFILE%\Documents\Neuronic\neuron-scripts`. |
 | `unable to get local issuer certificate` | Run `py -3 -m pip install certifi`. |
+| `Failed building wheel for cryptography` or `link.exe was not found` | This PC is Windows on ARM (the Python folder name ends in `-arm64`). Update the scripts (`git pull`) and run `py -3 -m pip install -r requirements.txt` again. `requirements.txt` now picks a `cryptography` version with a ready-made ARM build, so Visual Studio isn't needed. |
 | `ModuleNotFoundError: No module named ...` | Run `py -3 -m pip install -r requirements.txt` again. |
 | Machine doesn't appear on PulseBoard | Check `sheetID`, `sheetName` and `exhibitName`, then run `py -3 pulse.py` and read the message. |
 | Desktop stays locked | Press **Ctrl+Shift+S**. |

@@ -8,5 +8,9 @@ wget           # archive_update.py, install.py - download app archives
 keyboard       # guard.py, send_email_bulk.py - Ctrl+Shift+S hotkey
 pyserial       # serial_tcp_client.py
 msal           # oauth365.py - Office 365 / SharePoint sign-in
+# msal needs cryptography. On Windows ARM (Snapdragon / Surface Pro X etc.) only
+# cryptography 46.0.x ships a ready-made build; newer versions try to compile
+# and fail without Visual Studio's C++ tools. Pin it there only.
+cryptography==46.0.3 ; sys_platform == "win32" and platform_machine == "ARM64"
 requests       # send_to_sharepoint.py
 obsws-python   # OBS scripts (open_projector.py, reset_camera.py, setup_obs.py, ...)
