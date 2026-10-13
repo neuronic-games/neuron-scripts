@@ -4,7 +4,7 @@ Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch t
 
 - [What runs on an exhibit](#what-runs-on-an-exhibit)
 - [Install on Windows](#install-on-windows)
-  - [Start automatically and add a desktop shortcut](#6-start-the-exhibit-automatically-and-add-a-desktop-shortcut)
+  - [Start automatically and add desktop and taskbar shortcuts](#6-start-the-exhibit-automatically-and-add-desktop-and-taskbar-shortcuts)
 - [Install on Linux](#install-on-linux)
 - [Edit the settings](#edit-the-settings)
 - [Start the exhibit](#start-the-exhibit)
@@ -91,25 +91,35 @@ py -3 pulse.py --test
 
 It sends a single report, then stops. A success ends with `Success - check the '<sheetName>' tab for row '<exhibitName>'`, and the machine appears on that tab within a few seconds. A failure ends with `Failed` and the reason, such as a wrong `sheetID` or no internet. A test report doesn't clear `crash.log`.
 
-### 6. Start the exhibit automatically, and add a desktop shortcut
+### 6. Start the exhibit automatically, and add desktop and taskbar shortcuts
 
-Put a shortcut to `launch.cmd` in the **Startup** folder (`shell:startup`) so the exhibit starts whenever Windows signs in. Put another on the **desktop** for restarting it by hand.
+Put a shortcut in the **Startup** folder (`shell:startup`) so the exhibit starts whenever Windows signs in. Put another on the **desktop**, and pin it to the **taskbar**, for restarting the exhibit by hand.
+
+The shortcuts run `cmd /c "...\launch.cmd"` rather than `launch.cmd` itself, because Windows only lets you pin a shortcut to the taskbar when it starts a program such as `cmd.exe`.
 
 **Quick way:** paste this whole line into Command Prompt. It creates a **Neuron Launcher** shortcut, with the Neuronic icon, in both places:
 
 ```bat
-powershell -NoProfile -Command "$d = Join-Path $env:USERPROFILE 'Documents\Neuronic\neuron-scripts'; $w = New-Object -ComObject WScript.Shell; foreach ($f in 'Startup','Desktop') { $s = $w.CreateShortcut((Join-Path ([Environment]::GetFolderPath($f)) 'Neuron Launcher.lnk')); $s.TargetPath = (Join-Path $d 'launch.cmd'); $s.WorkingDirectory = $d; $s.IconLocation = (Join-Path $d 'logo\neuronic.ico'); $s.Save(); Write-Host ('Created ' + $s.FullName) }"
+powershell -NoProfile -Command "$d = Join-Path $env:USERPROFILE 'Documents\Neuronic\neuron-scripts'; $q = [char]34; $w = New-Object -ComObject WScript.Shell; foreach ($f in 'Startup','Desktop') { $s = $w.CreateShortcut((Join-Path ([Environment]::GetFolderPath($f)) 'Neuron Launcher.lnk')); $s.TargetPath = $env:ComSpec; $s.Arguments = '/c ' + $q + (Join-Path $d 'launch.cmd') + $q; $s.WorkingDirectory = $d; $s.IconLocation = (Join-Path $d 'logo\neuronic.ico'); $s.Save(); Write-Host ('Created ' + $s.FullName) }"
 ```
 
 You should see two `Created ...` lines: one in `...\Start Menu\Programs\Startup` and one on the desktop. This works even if the Desktop folder has been moved to OneDrive.
 
 **By hand:**
 
-1. Press **Win+R**, type `shell:startup` and press **Enter**. The Startup folder opens.
-2. In a second File Explorer window, go to `Documents\Neuronic\neuron-scripts`.
-3. Hold **Alt** and drag `launch.cmd` into the Startup folder. Holding Alt makes a shortcut instead of moving the file.
-4. Right-click `launch.cmd` again and choose **Show more options → Send to → Desktop (create shortcut)**.
-5. Optional: rename the shortcuts **Neuron Launcher**. To change the icon, right-click a shortcut, choose **Properties → Change Icon**, and pick `logo\neuronic.ico`.
+1. Right-click an empty part of the desktop and choose **New → Shortcut**.
+2. For the location, enter
+   ```
+   cmd /c "%USERPROFILE%\Documents\Neuronic\neuron-scripts\launch.cmd"
+   ```
+   then click **Next**, name it **Neuron Launcher**, and click **Finish**.
+3. Right-click the new shortcut and choose **Properties**.
+   - Set **Start in** to `%USERPROFILE%\Documents\Neuronic\neuron-scripts`.
+   - Click **Change Icon → Browse** and pick `logo\neuronic.ico` in that folder.
+   - Click **OK**.
+4. Press **Win+R**, type `shell:startup` and press **Enter**. Copy the desktop shortcut into the Startup folder that opens. Ctrl+C, then Ctrl+V works.
+
+**Pin it to the taskbar:** right-click the **Neuron Launcher** shortcut on the desktop and choose **Pin to taskbar**. On Windows 11 it may be under **Show more options**.
 
 > **Always use a shortcut, not a copy.** A copy of `launch.cmd` doesn't get the fixes `git pull` brings in. Moving the real file breaks `git pull` and `launch.cmd` itself.
 
@@ -121,7 +131,7 @@ You should see two `Created ...` lines: one in `...\Start Menu\Programs\Startup`
 
 **Test it:** restart the PC. The exhibit should start by itself after Windows signs in.
 
-**Turn off auto-start:** delete the **Neuron Launcher** shortcut from `shell:startup`. The desktop shortcut can stay.
+**Turn off auto-start:** delete the **Neuron Launcher** shortcut from `shell:startup`. The desktop and taskbar shortcuts can stay.
 
 ---
 
@@ -476,8 +486,8 @@ When new settings are added to `settings.py.sample`, copy the ones you need into
 | `ModuleNotFoundError: No module named ...` | Run `py -3 -m pip install -r requirements.txt` again. |
 | Machine doesn't appear on PulseBoard | Check `sheetID`, `sheetName` and `exhibitName`, then run `py -3 pulse.py --test` and read the message. |
 | Desktop stays locked | Press **Ctrl+Shift+S**. |
-| Exhibit doesn't start after a reboot | Check there's a shortcut in `shell:startup` and that Windows signs in automatically (step 6). |
-| PowerShell shortcut command fails | Create the shortcuts by hand instead (step 6). |
+| Exhibit doesn't start after a reboot | Check there's a shortcut in `shell:startup` and that Windows signs in automatically (Install on Windows, step 6). |
+| PowerShell shortcut command fails | Create the shortcuts by hand instead (Install on Windows, step 6). |
 | App keeps crashing | Check `crash.log` in the scripts folder. |
 | Desktop logo is off-center | Update the scripts (`git pull`). `guard.py` now centers it. Check `logoWallpaperStyle` isn't set to something odd ([Change the logo](#change-the-logo)). |
 | Lock screen shows no logo, or only part of it | Check `logoBrand` matches a **PNG** file in the `logo` folder. If only part shows, make the image smaller ([Change the logo](#change-the-logo)). |
