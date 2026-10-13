@@ -83,13 +83,13 @@ Each machine has its own `settings.py`. Git never overwrites it, so your setting
 
 ### 5. Check it works
 
-Send one status report to PulseBoard:
+Send one test report to PulseBoard:
 
 ```bat
-py -3 pulse.py
+py -3 pulse.py --test
 ```
 
-You should see `Monitoring <exhibitName> → https://zapsheets.com/...`. The first report is sent straight away, so the machine should appear on the `sheetName` tab of the Google Sheet within a few seconds. Press **Ctrl+C** to stop.
+It sends a single report, then stops. A success ends with `Success - check the '<sheetName>' tab for row '<exhibitName>'`, and the machine appears on that tab within a few seconds. A failure ends with `Failed` and the reason, such as a wrong `sheetID` or no internet. A test report doesn't clear `crash.log`.
 
 ### 6. Start the exhibit automatically, and add a desktop shortcut
 
@@ -192,10 +192,10 @@ python3 -c "import settings_loader, settings; print('settings.py OK')"
 ### 5. Check it works
 
 ```bash
-python3 pulse.py
+python3 pulse.py --test
 ```
 
-You should see `Monitoring <exhibitName> → https://zapsheets.com/...`, and the machine should appear on PulseBoard within a few seconds. Press **Ctrl+C** to stop.
+It sends one report and stops. Look for `Success`, then check the machine appears on PulseBoard.
 
 ### 6. Start, stop, and start automatically
 
@@ -474,7 +474,7 @@ When new settings are added to `settings.py.sample`, copy the ones you need into
 | `unable to get local issuer certificate` | Run `py -3 -m pip install certifi`. |
 | `Failed building wheel for cryptography` or `link.exe was not found` | This PC is Windows on ARM (the Python folder name ends in `-arm64`). Update the scripts (`git pull`) and run `py -3 -m pip install -r requirements.txt` again. `requirements.txt` now picks a `cryptography` version with a ready-made ARM build, so Visual Studio isn't needed. |
 | `ModuleNotFoundError: No module named ...` | Run `py -3 -m pip install -r requirements.txt` again. |
-| Machine doesn't appear on PulseBoard | Check `sheetID`, `sheetName` and `exhibitName`, then run `py -3 pulse.py` and read the message. |
+| Machine doesn't appear on PulseBoard | Check `sheetID`, `sheetName` and `exhibitName`, then run `py -3 pulse.py --test` and read the message. |
 | Desktop stays locked | Press **Ctrl+Shift+S**. |
 | Exhibit doesn't start after a reboot | Check there's a shortcut in `shell:startup` and that Windows signs in automatically (step 6). |
 | PowerShell shortcut command fails | Create the shortcuts by hand instead (step 6). |
