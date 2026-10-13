@@ -97,10 +97,10 @@ Put a shortcut in the **Startup** folder (`shell:startup`) so the exhibit starts
 
 The shortcuts run `cmd /c "...\launch.cmd"` rather than `launch.cmd` itself, because Windows only lets you pin a shortcut to the taskbar when it starts a program such as `cmd.exe`.
 
-**Quick way:** paste this whole line into Command Prompt. It creates a **Neuron Launcher** shortcut, with the Neuronic icon, in both places:
+**Quick way:** paste this whole line into Command Prompt. It creates a **Launch** shortcut, with the Neuronic icon, in both places:
 
 ```bat
-powershell -NoProfile -Command "$d = Join-Path $env:USERPROFILE 'Documents\Neuronic\neuron-scripts'; $q = [char]34; $w = New-Object -ComObject WScript.Shell; foreach ($f in 'Startup','Desktop') { $s = $w.CreateShortcut((Join-Path ([Environment]::GetFolderPath($f)) 'Neuron Launcher.lnk')); $s.TargetPath = $env:ComSpec; $s.Arguments = '/c ' + $q + (Join-Path $d 'launch.cmd') + $q; $s.WorkingDirectory = $d; $s.IconLocation = (Join-Path $d 'logo\neuronic.ico'); $s.Save(); Write-Host ('Created ' + $s.FullName) }"
+powershell -NoProfile -Command "$d = Join-Path $env:USERPROFILE 'Documents\Neuronic\neuron-scripts'; $q = [char]34; $w = New-Object -ComObject WScript.Shell; foreach ($f in 'Startup','Desktop') { $s = $w.CreateShortcut((Join-Path ([Environment]::GetFolderPath($f)) 'Launch.lnk')); $s.TargetPath = $env:ComSpec; $s.Arguments = '/c ' + $q + (Join-Path $d 'launch.cmd') + $q; $s.WorkingDirectory = $d; $s.IconLocation = (Join-Path $d 'logo\neuronic.ico'); $s.Save(); Write-Host ('Created ' + $s.FullName) }"
 ```
 
 You should see two `Created ...` lines: one in `...\Start Menu\Programs\Startup` and one on the desktop. This works even if the Desktop folder has been moved to OneDrive.
@@ -112,14 +112,14 @@ You should see two `Created ...` lines: one in `...\Start Menu\Programs\Startup`
    ```
    cmd /c "%USERPROFILE%\Documents\Neuronic\neuron-scripts\launch.cmd"
    ```
-   then click **Next**, name it **Neuron Launcher**, and click **Finish**.
+   then click **Next**, name it **Launch**, and click **Finish**.
 3. Right-click the new shortcut and choose **Properties**.
    - Set **Start in** to `%USERPROFILE%\Documents\Neuronic\neuron-scripts`.
    - Click **Change Icon → Browse** and pick `logo\neuronic.ico` in that folder.
    - Click **OK**.
 4. Press **Win+R**, type `shell:startup` and press **Enter**. Copy the desktop shortcut into the Startup folder that opens. Ctrl+C, then Ctrl+V works.
 
-**Pin it to the taskbar:** right-click the **Neuron Launcher** shortcut on the desktop and choose **Pin to taskbar**. On Windows 11 it may be under **Show more options**.
+**Pin it to the taskbar:** right-click the **Launch** shortcut on the desktop and choose **Pin to taskbar**. On Windows 11 it may be under **Show more options**.
 
 > **Always use a shortcut, not a copy.** A copy of `launch.cmd` doesn't get the fixes `git pull` brings in. Moving the real file breaks `git pull` and `launch.cmd` itself.
 
@@ -131,7 +131,7 @@ You should see two `Created ...` lines: one in `...\Start Menu\Programs\Startup`
 
 **Test it:** restart the PC. The exhibit should start by itself after Windows signs in.
 
-**Turn off auto-start:** delete the **Neuron Launcher** shortcut from `shell:startup`. The desktop and taskbar shortcuts can stay.
+**Turn off auto-start:** delete the **Launch** shortcut from `shell:startup`. The desktop and taskbar shortcuts can stay.
 
 ---
 
@@ -232,7 +232,7 @@ mkdir -p ~/.config/autostart
 cat > ~/.config/autostart/neuron-launcher.desktop <<EOF
 [Desktop Entry]
 Type=Application
-Name=Neuron Launcher
+Name=Launch
 Comment=Start the Neuronic exhibit
 Exec=$HOME/Documents/Neuronic/neuron-scripts/launch.sh
 Path=$HOME/Documents/Neuronic/neuron-scripts
@@ -246,7 +246,7 @@ chmod +x "$DESK/neuron-launcher.desktop"
 gio set "$DESK/neuron-launcher.desktop" metadata::trusted true 2>/dev/null || true
 ```
 
-The first part makes the exhibit start whenever you sign in. The second puts a **Neuron Launcher** icon on the desktop. On Ubuntu, if the icon doesn't run when double-clicked, right-click it and choose **Allow Launching**.
+The first part makes the exhibit start whenever you sign in. The second puts a **Launch** icon on the desktop. On Ubuntu, if the icon doesn't run when double-clicked, right-click it and choose **Allow Launching**.
 
 **Sign in automatically.** Like the Windows Startup folder, auto-start only runs once someone signs in. On Ubuntu, open **Settings → Users** (or **System → Users**), click **Unlock**, and turn on **Automatic Login**. Then restart to check the exhibit starts by itself.
 
