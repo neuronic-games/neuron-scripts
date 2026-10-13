@@ -348,7 +348,11 @@ Linux doesn't show the logo.
    - `desktopColor = RGB(255, 255, 255)` sets the desktop color around the wallpaper logo. It's black by default; note the different format.
 6. **Restart the exhibit** to see it. Run `launch.cmd`, or press **Ctrl+Shift+S** and start it again.
 
-**How the logo fills the desktop** follows Windows' own wallpaper setting. Go to **Settings → Personalization → Background → Choose a fit for your desktop image**. **Center** shows the logo at its real size, and **Fit** scales it to the screen without cropping.
+**How the logo fills the desktop:** `guard.py` centers it with Windows' **Fit** placement, so the whole logo is scaled to the screen without cropping. To place it differently, add one of these to `settings.py`:
+   ```python
+   logoWallpaperStyle = "center"   # "fit" (default), "center" (real size), "fill" or "stretch"
+   ```
+   The PC's own wallpaper placement is put back when you quit with Ctrl+Shift+S.
 
 **After quitting with Ctrl+Shift+S,** the desktop wallpaper is set back to the first image in the `background` folder.
 
@@ -474,6 +478,7 @@ When new settings are added to `settings.py.sample`, copy the ones you need into
 | Exhibit doesn't start after a reboot | Check there's a shortcut in `shell:startup` and that Windows signs in automatically (step 6). |
 | PowerShell shortcut command fails | Create the shortcuts by hand instead (step 6). |
 | App keeps crashing | Check `crash.log` in the scripts folder. |
+| Desktop logo is off-center | Update the scripts (`git pull`). `guard.py` now centers it. Check `logoWallpaperStyle` isn't set to something odd ([Change the logo](#change-the-logo)). |
 | Lock screen shows no logo, or only part of it | Check `logoBrand` matches a **PNG** file in the `logo` folder. If only part shows, make the image smaller ([Change the logo](#change-the-logo)). |
 | `git pull` fails with *Your local changes would be overwritten* | A file from the repo was changed on this machine, often the logo. Run `git checkout -- logo` to undo, then use a new file name ([Change the logo](#change-the-logo)). |
 | **Linux:** `externally-managed-environment` when installing packages | Add `--break-system-packages` (Install on Linux, step 3). |

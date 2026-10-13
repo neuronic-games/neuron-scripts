@@ -179,6 +179,56 @@ def show_lock_window(quit_event):
     root.after(200, _poll_quit)
     root.mainloop()
 
+# How the logo wallpaper is placed on the desktop. Windows otherwise reuses
+# whatever "fit" was last chosen in Settings -> Personalization -> Background,
+# and with Tile/Span it's pinned to the top-left, so the logo lands off-center.
+# Optional setting: logoWallpaperStyle = "fit" | "center" | "fill" | "stretch".
+_WALLPAPER_STYLES = {           # (WallpaperStyle, TileWallpaper) in HKCU\Control Panel\Desktop
+    'center':  ('0',  '0'),
+    'stretch': ('2',  '0'),
+    'fit':     ('6',  '0'),
+    'fill':    ('10', '0'),
+}
+_prev_wallpaper_style = None    # what the PC had before guard.py changed it
+
+def _write_wallpaper_style(values):
+    import winreg
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Control Panel\Desktop', 0,
+                        winreg.KEY_READ | winreg.KEY_SET_VALUE) as key:
+        prev = []
+        for name in ('WallpaperStyle', 'TileWallpaper'):
+            try:
+                prev.append(winreg.QueryValueEx(key, name)[0])
+            except FileNotFoundError:
+                prev.append(None)
+        for name, value in zip(('WallpaperStyle', 'TileWallpaper'), values):
+            if value is not None:
+                winreg.SetValueEx(key, name, 0, winreg.REG_SZ, str(value))
+    return tuple(prev)
+
+def set_logo_wallpaper_style():
+    """Set the wallpaper placement for the logo (default: fit = centered,
+    whole image visible). Remembers the previous placement for restore."""
+    global _prev_wallpaper_style
+    key = str(getattr(settings, 'logoWallpaperStyle', 'fit')).strip().lower()
+    style = _WALLPAPER_STYLES.get(key, _WALLPAPER_STYLES['fit'])
+    try:
+        prev = _write_wallpaper_style(style)
+        if _prev_wallpaper_style is None:
+            _prev_wallpaper_style = prev
+    except Exception as e:
+        print(f'Could not set wallpaper style ({e}) - using the current Windows setting.')
+
+def restore_wallpaper_style():
+    global _prev_wallpaper_style
+    if _prev_wallpaper_style is None:
+        return
+    try:
+        _write_wallpaper_style(_prev_wallpaper_style)
+    except Exception as e:
+        print(f'Could not restore wallpaper style ({e}).')
+    _prev_wallpaper_style = None
+
 def getWallpaper():
     bg = os.path.join(_script_dir, 'background')
     files = os.listdir(bg) if os.path.isdir(bg) else []
@@ -187,6 +237,7 @@ def getWallpaper():
 def restore_desktop():
     if _IS_WIN:
         ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(reset_desktop)))
+        restore_wallpaper_style()  # before setting the wallpaper, so it applies
         wp = getWallpaper()
         if wp:
             ctypes.windll.user32.SystemParametersInfoW(20, 0, wp, 3)
@@ -203,6 +254,7 @@ def initApp():
         windll.user32.ShowWindow(initApp.consoleBarHandler, 0)
         ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(desktop_color)))
         logo_path = os.path.join(_script_dir, 'logo', logo_brand)
+        set_logo_wallpaper_style()  # must come before SystemParametersInfoW to take effect
         ctypes.windll.user32.SystemParametersInfoW(20, 0, logo_path, 3)
     if NO_APP_CONFIGURED:
         print('No app configured (appEXEName is blank) - showing logo, desktop locked.')
