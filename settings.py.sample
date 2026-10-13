@@ -1,4 +1,4 @@
-# settings.py v1.4
+# settings.py v1.5
 # TAM (c) Neuronic 2025
 
 import os
@@ -17,7 +17,7 @@ exhibitName = "???" # e.g. SKELETAL-POP-1
 # correct even if the user has moved/redirected that folder. Override with
 # a literal string here if this deployment needs a different location.
 appPath = os.path.join(get_documents_folder(), 'Neuronic')
-appName = '???'  # e.g. Skeletal Pop
+appFolder = '???'  # e.g. Skeletal Pop - the app's folder inside appPath (was appName)
 
 # Folder for EXE file and its name. If appEXEName is left blank, guard.py
 # doesn't try to launch/monitor anything - it just shows a full-screen

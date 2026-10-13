@@ -28,7 +28,7 @@ def normalize_folder_os_path(path):
 
 # Create app folder
 
-folder = normalize_folder_os_path(os.path.join(settings.appPath, settings.appName))
+folder = normalize_folder_os_path(os.path.join(settings.appPath, settings.appFolder))
 if not os.path.exists(folder) :
     print ("Creating " + folder)
     os.mkdir(folder)
