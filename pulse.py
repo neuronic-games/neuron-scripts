@@ -227,7 +227,10 @@ def read_and_clear_crashes():
 
 # ── Send heartbeat ─────────────────────────────────────────────────────────────
 
+_last_result = {}
+
 def send_pulse(status='', include_crashes=False):
+    global _last_result
     payload = {
         'tab':         settings.sheetName,
         'exhibit':     settings.exhibitName,
@@ -253,6 +256,7 @@ def send_pulse(status='', include_crashes=False):
     try:
         with urllib.request.urlopen(pulse_url, data, timeout=15, context=_SSL_CONTEXT) as resp:
             result = json.loads(resp.read())
+        _last_result = result
         if result.get('ok'):
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Pulse OK")
             return True
@@ -276,6 +280,10 @@ if args.test:
     ok = send_pulse(status='Ok' if running else '')
     if ok:
         print(f"Success - check the '{settings.sheetName}' tab for row '{settings.exhibitName}'.")
+        share_url = _last_result.get('share_url')
+        if share_url:
+            new = ' (new)' if _last_result.get('share_created') else ''
+            print(f"Client link for '{settings.sheetName}'{new}: {share_url}")
     else:
         print("Failed - see the message above. Check sheetID, sheetName and exhibitName "
               "in settings.py, and that this PC can reach zapsheets.com.")
