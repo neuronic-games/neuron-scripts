@@ -1,12 +1,13 @@
 # neuron-scripts
 
-Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch the exhibit app, lock down the desktop, report the machine's health to PulseBoard, and keep the app and scripts up to date.
+Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch the exhibit app, lock down the desktop, and keep the app and scripts up to date. Optionally, they also report each machine's health to [PulseBoard](#pulseboard-optional).
 
 - [What runs on an exhibit](#what-runs-on-an-exhibit)
 - [Install on Windows](#install-on-windows)
   - [Start automatically and add desktop and taskbar shortcuts](#6-start-the-exhibit-automatically-and-add-desktop-and-taskbar-shortcuts)
 - [Install on Linux](#install-on-linux)
 - [Edit the settings](#edit-the-settings)
+- [PulseBoard (optional)](#pulseboard-optional)
 - [Start the exhibit](#start-the-exhibit)
 - [Updating](#updating)
 - [Troubleshooting](#troubleshooting)
@@ -21,7 +22,7 @@ Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch t
 2. Runs `git pull` to get the latest scripts.
 3. **`archive_update.py`**: if `checkForUpdate` is on, downloads and unzips a newer version of the app.
 4. **`start_obs.cmd`**: starts OBS Studio, only if `startObs` is on.
-5. **`pulse.py`**: sends this machine's status to PulseBoard (the Google Sheet) when it starts, when the app comes up, and every 5 hours after that.
+5. **`pulse.py`**: only if `sheetID` is set. Sends this machine's status to [PulseBoard](#pulseboard-optional) when it starts, when the app comes up, and every 5 hours after that.
 6. **`clean_up_folder.py --loop`**: deletes old files, only if `cleanupFolders` is set.
 7. **`launch_aux.cmd`**: your own extra launch steps, only if that file exists.
 8. **`guard.py`**: starts the exhibit app full-screen, restarts it if it crashes, and locks the desktop.
@@ -81,17 +82,13 @@ notepad settings.py
 
 Each machine has its own `settings.py`. Git never overwrites it, so your settings survive updates. Edit it as described in the next section, then save.
 
-### 5. Check it works
-
-Send one test report to PulseBoard:
+### 5. Check the settings
 
 ```bat
-py -3 pulse.py --test
+py -3 -c "import settings_loader, settings; print('settings.py OK')"
 ```
 
-It sends a single report, then stops. A success ends with `Success - check the '<sheetName>' tab for row '<exhibitName>'`, and the machine appears on that tab within a few seconds. A failure ends with `Failed` and the reason, such as a wrong `sheetID` or no internet. A test report doesn't clear `crash.log`.
-
-On success it also prints a **Client link**: a read-only PulseBoard page showing only this tab's machines, with no login needed. It's created automatically the first time a tab reports, then reused, so you can send the same link to the client.
+If you use PulseBoard, also send a test report with `py -3 pulse.py --test` (see [PulseBoard (optional)](#pulseboard-optional)).
 
 ### 6. Start the exhibit automatically, and add desktop and taskbar shortcuts
 
@@ -195,19 +192,13 @@ Edit it as described in [Edit the settings](#edit-the-settings). In nano, press 
 - **`appEXEName`** is the app's program file, such as `'skeletal-pop.x86_64'`. Make sure it can run: `chmod +x "/path/to/app/skeletal-pop.x86_64"`.
 - **Web exhibits:** set `appEXEPath = '/opt/google/chrome'` and `appEXEName = 'chrome'`, then put the page in `appURL`. Google Chrome must be installed.
 
-Check the file for mistakes:
+### 5. Check the settings
 
 ```bash
 python3 -c "import settings_loader, settings; print('settings.py OK')"
 ```
 
-### 5. Check it works
-
-```bash
-python3 pulse.py --test
-```
-
-It sends one report and stops. Look for `Success` and the **Client link** for this tab, then check the machine appears on PulseBoard.
+If you use PulseBoard, also run `python3 pulse.py --test` (see [PulseBoard (optional)](#pulseboard-optional)).
 
 ### 6. Start, stop, and start automatically
 
@@ -301,11 +292,13 @@ notepad "%USERPROFILE%\Documents\Neuronic\neuron-scripts\settings.py"
 
 Most exhibits only need the **Required** settings. Every other section is only for exhibits that use that feature.
 
-### Required: PulseBoard reporting
+### PulseBoard status reports (optional)
+
+Leave `sheetID` blank, the default, and PulseBoard is off. `launch.cmd` and `launch.sh` then don't start `pulse.py`. To turn it on, fill in all three settings. See [PulseBoard (optional)](#pulseboard-optional).
 
 | Setting | What it does | Example |
 |---|---|---|
-| `sheetID` | The Google Sheet that PulseBoard reports go to. Leave it as it is unless you're told otherwise. | `"1FDmuen…"` |
+| `sheetID` | The Google Sheet that PulseBoard reports go to. **Blank = PulseBoard off.** | `"1FDmuen…"` |
 | `sheetName` | The tab in that sheet for this site or client. If the tab doesn't exist yet, it's created on the first report. | `"CMH"` |
 | `exhibitName` | This machine's name. It must be **unique on that tab**, because it's how PulseBoard finds this machine's row. Use capitals and dashes, with no spaces. | `"SKELETAL-POP-1"` |
 
@@ -442,6 +435,63 @@ Plain `launch.cmd` goes back to `settings.py`.
 
 ---
 
+## PulseBoard (optional)
+
+[PulseBoard](https://zapsheets.com/app/pulseboard/help) is a dashboard that shows the health of every exhibit machine at a glance: whether its app is running, memory, disk, uptime, crashes, IP address and TeamViewer ID. `pulse.py` sends each machine's status to a Google Sheet, and PulseBoard displays it. Machines are grouped by tab, usually one tab per site or client.
+
+It's **off by default**. Leave `sheetID` blank and nothing is sent.
+
+### Turn it on
+
+1. **Set up the sheet**, once per sheet. Skip this if you're joining an existing PulseBoard sheet.
+   - Create a Google Sheet.
+   - Click **Share**, and add `editor@zapsheets-480701.iam.gserviceaccount.com` as an **Editor**.
+   - Go to <https://zapsheets.com/app/pulseboard>, paste the sheet's link or ID, and click **Set Up PulseBoard**.
+2. **Fill in the settings** in each machine's `settings.py`:
+   ```python
+   sheetID     = "1FDmuenqlcFrYcqWEsHem3PApsGxmyf87t_M1nSZmnxQ"   # the sheet's ID
+   sheetName   = "CMH"              # tab for this site or client
+   exhibitName = "SKELETAL-POP-1"   # unique name for this machine on that tab
+   ```
+   The sheet ID is the long code in the sheet's address, between `/d/` and `/edit`. You don't need to create the tab, because the first report creates it.
+3. **Send a test report:**
+   ```bat
+   py -3 pulse.py --test
+   ```
+   On Linux, use `python3 pulse.py --test`. It sends one report and stops, without clearing `crash.log`.
+   - **Success** ends with `Success - check the '<sheetName>' tab for row '<exhibitName>'`, and the machine appears on that tab within a few seconds.
+   - **Failure** ends with `Failed` and the reason, such as a wrong `sheetID` or no internet.
+   - **PulseBoard is off** if `sheetID` is blank. Any setting left as `???` is reported, so nothing gets sent to a tab called "???".
+4. **Restart the exhibit.** `launch.cmd` now starts `pulse.py` in the background.
+
+### What gets reported, and when
+
+`pulse.py` reports when it starts, when the app comes up, and every 5 hours while the app runs. Each report includes:
+- the app's status (**Ok** when it's running)
+- host name, IP address and signed-in user
+- Windows version, memory, disk, uptime and last reboot
+- TeamViewer ID
+- the number and times of app crashes `guard.py` has restarted since the last report
+
+Notes you type into the sheet or the dashboard are never overwritten.
+
+### The dashboard
+
+Your dashboard is at `https://zapsheets.com/app/<sheetID>/pulseboard`. Each tab is a group of machine cards, and you can click a card for details and notes.
+
+- **A machine typed into the sheet** that hasn't reported yet appears after you click the circular **reload** arrow in that tab's header, or **Fetch** in the menu.
+- **The reload arrow** re-reads just that tab from the sheet. **Fetch** re-reads every tab.
+
+### Client links
+
+Each tab gets its own **read-only link**, showing only that tab's machines with no login. It's created automatically the first time a machine reports to the tab. `pulse.py --test` prints it as **Client link**, and the **Share** button in the tab's header shows it too. It's the same link every time, so it's safe to send. Clients can use the reload arrow on their page.
+
+> A client link shows those machines' IP addresses and TeamViewer IDs. Only send it to people who should see them.
+
+More detail: [PulseBoard help](https://zapsheets.com/app/pulseboard/help).
+
+---
+
 ## Start the exhibit
 
 ```bat
@@ -486,7 +536,8 @@ When new settings are added to `settings.py.sample`, copy the ones you need into
 | `unable to get local issuer certificate` | Run `py -3 -m pip install certifi`. |
 | `Failed building wheel for cryptography` or `link.exe was not found` | This PC is Windows on ARM (the Python folder name ends in `-arm64`). Update the scripts (`git pull`) and run `py -3 -m pip install -r requirements.txt` again. `requirements.txt` now picks a `cryptography` version with a ready-made ARM build, so Visual Studio isn't needed. |
 | `ModuleNotFoundError: No module named ...` | Run `py -3 -m pip install -r requirements.txt` again. |
-| Machine doesn't appear on PulseBoard | Check `sheetID`, `sheetName` and `exhibitName`, then run `py -3 pulse.py --test` and read the message. |
+| Machine doesn't appear on PulseBoard | Check `sheetID`, `sheetName` and `exhibitName`, then run `py -3 pulse.py --test` and read the message. If it says *PulseBoard is off*, `sheetID` is blank. If the machine still doesn't show, click the reload arrow on its tab. |
+| A tab called **???** appeared in the sheet | A machine had `sheetName = "???"`. Fix that machine's `settings.py`, then delete the tab. `pulse.py` now refuses to report with `???`. |
 | Desktop stays locked | Press **Ctrl+Shift+S**. |
 | Exhibit doesn't start after a reboot | Check there's a shortcut in `shell:startup` and that Windows signs in automatically (Install on Windows, step 6). |
 | PowerShell shortcut command fails | Create the shortcuts by hand instead (Install on Windows, step 6). |
