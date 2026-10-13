@@ -26,7 +26,7 @@ if not _setting('sheetID'):
     print('PulseBoard is off (sheetID is blank in settings.py) - no status reports sent.')
     sys.exit(1 if args.test else 0)
 
-_missing = [n for n in ('sheetName', 'exhibitName') if not _setting(n)]
+_missing = [n for n in ('orgName', 'exhibitName') if not _setting(n)]
 if _missing:
     print(f"PulseBoard: set {' and '.join(_missing)} in settings.py "
           "(or blank sheetID to turn PulseBoard off) - no status reports sent.")
@@ -248,7 +248,7 @@ _last_result = {}
 def send_pulse(status='', include_crashes=False):
     global _last_result
     payload = {
-        'tab':         settings.sheetName,
+        'tab':         settings.orgName,
         'exhibit':     settings.exhibitName,
         'host':        host_name,
         'ip':          host_ip,
@@ -288,20 +288,20 @@ CRASH_PULSE_INTERVAL = 5 * 60 * 60  # 5 hours in seconds
 # ── Test mode: one report, then exit ─────────────────────────────────────────
 
 if args.test:
-    print(f"Testing {settings.exhibitName} (tab {settings.sheetName}) → {pulse_url}")
+    print(f"Testing {settings.exhibitName} (tab {settings.orgName}) → {pulse_url}")
     running = bool(is_running())
     exe = getattr(settings, 'appEXEName', '') or '(none set)'
     print(f"App {exe}: {'running' if running else 'not running'}")
     # Crashes are left out so the test doesn't clear crash.log.
     ok = send_pulse(status='Ok' if running else '')
     if ok:
-        print(f"Success - check the '{settings.sheetName}' tab for row '{settings.exhibitName}'.")
+        print(f"Success - check the '{settings.orgName}' tab for row '{settings.exhibitName}'.")
         share_url = _last_result.get('share_url')
         if share_url:
             new = ' (new)' if _last_result.get('share_created') else ''
-            print(f"Client link for '{settings.sheetName}'{new}: {share_url}")
+            print(f"Client link for '{settings.orgName}'{new}: {share_url}")
     else:
-        print("Failed - see the message above. Check sheetID, sheetName and exhibitName "
+        print("Failed - see the message above. Check sheetID, orgName and exhibitName "
               "in settings.py, and that this PC can reach zapsheets.com.")
     sys.exit(0 if ok else 1)
 

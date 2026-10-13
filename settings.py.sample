@@ -10,7 +10,7 @@ from user_folders import get_documents_folder
 # start pulse.py. To turn it on, set all three. See README "PulseBoard
 # (optional)" and https://zapsheets.com/app/pulseboard/help
 sheetID = ""      # Google Sheet ID, e.g. "1FDmuenqlcFrYcqWEsHem3PApsGxmyf87t_M1nSZmnxQ"
-sheetName = ""    # tab for this site or client, e.g. "CMH"
+orgName = ""      # site or client - its tab on the sheet, e.g. "CMH" (was sheetName)
 exhibitName = ""  # this machine's unique name on that tab, e.g. "SKELETAL-POP-1"
 
 # Folder for apps and app data. Defaults to <Documents>/Neuronic, resolved

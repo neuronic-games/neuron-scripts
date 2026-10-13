@@ -299,7 +299,7 @@ Leave `sheetID` blank, the default, and PulseBoard is off. `launch.cmd` and `lau
 | Setting | What it does | Example |
 |---|---|---|
 | `sheetID` | The Google Sheet that PulseBoard reports go to. **Blank = PulseBoard off.** | `"1FDmuen…"` |
-| `sheetName` | The tab in that sheet for this site or client. If the tab doesn't exist yet, it's created on the first report. | `"CMH"` |
+| `orgName` | The site or client. It's the name of this machine's tab in the sheet, and machines with the same `orgName` are grouped together. If the tab doesn't exist yet, it's created on the first report. Older settings files call this `sheetName`, which still works. | `"CMH"` |
 | `exhibitName` | This machine's name. It must be **unique on that tab**, because it's how PulseBoard finds this machine's row. Use capitals and dashes, with no spaces. | `"SKELETAL-POP-1"` |
 
 ### Required: the exhibit app
@@ -450,7 +450,7 @@ It's **off by default**. Leave `sheetID` blank and nothing is sent.
 2. **Fill in the settings** in each machine's `settings.py`:
    ```python
    sheetID     = "1FDmuenqlcFrYcqWEsHem3PApsGxmyf87t_M1nSZmnxQ"   # the sheet's ID
-   sheetName   = "CMH"              # tab for this site or client
+   orgName     = "CMH"              # site or client: its tab on the sheet
    exhibitName = "SKELETAL-POP-1"   # unique name for this machine on that tab
    ```
    The sheet ID is the long code in the sheet's address, between `/d/` and `/edit`. You don't need to create the tab, because the first report creates it.
@@ -459,7 +459,7 @@ It's **off by default**. Leave `sheetID` blank and nothing is sent.
    py -3 pulse.py --test
    ```
    On Linux, use `python3 pulse.py --test`. It sends one report and stops, without clearing `crash.log`.
-   - **Success** ends with `Success - check the '<sheetName>' tab for row '<exhibitName>'`, and the machine appears on that tab within a few seconds.
+   - **Success** ends with `Success - check the '<orgName>' tab for row '<exhibitName>'`, and the machine appears on that tab within a few seconds.
    - **Failure** ends with `Failed` and the reason, such as a wrong `sheetID` or no internet.
    - **PulseBoard is off** if `sheetID` is blank. Any setting left as `???` is reported, so nothing gets sent to a tab called "???".
 4. **Restart the exhibit.** `launch.cmd` now starts `pulse.py` in the background.
@@ -536,8 +536,8 @@ When new settings are added to `settings.py.sample`, copy the ones you need into
 | `unable to get local issuer certificate` | Run `py -3 -m pip install certifi`. |
 | `Failed building wheel for cryptography` or `link.exe was not found` | This PC is Windows on ARM (the Python folder name ends in `-arm64`). Update the scripts (`git pull`) and run `py -3 -m pip install -r requirements.txt` again. `requirements.txt` now picks a `cryptography` version with a ready-made ARM build, so Visual Studio isn't needed. |
 | `ModuleNotFoundError: No module named ...` | Run `py -3 -m pip install -r requirements.txt` again. |
-| Machine doesn't appear on PulseBoard | Check `sheetID`, `sheetName` and `exhibitName`, then run `py -3 pulse.py --test` and read the message. If it says *PulseBoard is off*, `sheetID` is blank. If the machine still doesn't show, click the reload arrow on its tab. |
-| A tab called **???** appeared in the sheet | A machine had `sheetName = "???"`. Fix that machine's `settings.py`, then delete the tab. `pulse.py` now refuses to report with `???`. |
+| Machine doesn't appear on PulseBoard | Check `sheetID`, `orgName` and `exhibitName`, then run `py -3 pulse.py --test` and read the message. If it says *PulseBoard is off*, `sheetID` is blank. If the machine still doesn't show, click the reload arrow on its tab. |
+| A tab called **???** appeared in the sheet | A machine had `orgName` (or the older `sheetName`) set to `"???"`. Fix that machine's `settings.py`, then delete the tab. `pulse.py` now refuses to report with `???`. |
 | Desktop stays locked | Press **Ctrl+Shift+S**. |
 | Exhibit doesn't start after a reboot | Check there's a shortcut in `shell:startup` and that Windows signs in automatically (Install on Windows, step 6). |
 | PowerShell shortcut command fails | Create the shortcuts by hand instead (Install on Windows, step 6). |

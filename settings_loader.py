@@ -42,3 +42,8 @@ if "settings" not in sys.modules:
     # working after `git pull` brings in the renamed scripts.
     if not getattr(_module, "appFolder", "") and getattr(_module, "appName", ""):
         _module.appFolder = _module.appName
+
+    # sheetName was renamed to orgName (the PulseBoard tab for this site or
+    # client). Same idea: accept the old name so existing machines keep reporting.
+    if not getattr(_module, "orgName", "") and getattr(_module, "sheetName", ""):
+        _module.orgName = _module.sheetName
