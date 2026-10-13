@@ -1,0 +1,263 @@
+# settings.py v1.5
+# TAM (c) Neuronic 2025
+
+import os
+from ctypes.wintypes import RGB
+from user_folders import get_documents_folder
+
+# --- PulseBoard status reports (optional) ---
+# Leave sheetID blank to turn PulseBoard off: launch.cmd/launch.sh then don't
+# start pulse.py. To turn it on, set all three. See README "PulseBoard
+# (optional)" and https://zapsheets.com/app/pulseboard/help
+sheetID = ""      # your Google Sheet ID, from its address: .../spreadsheets/d/<sheetID>/edit
+orgName = ""      # site or client - its tab on the sheet, e.g. "CMH" (was sheetName)
+exhibitName = ""  # this machine's unique name on that tab, e.g. "SKELETAL-POP-1"
+
+# Folder for apps and app data. Defaults to <Documents>/Neuronic, resolved
+# via the OS's actual Documents-folder lookup (see user_folders.py) so it's
+# correct even if the user has moved/redirected that folder. Override with
+# a literal string here if this deployment needs a different location.
+appPath = os.path.join(get_documents_folder(), 'Neuronic')
+appFolder = '???'  # e.g. Skeletal Pop - the app's folder inside appPath (was appName)
+
+# Folder for EXE file and its name. If appEXEName is left blank, guard.py
+# doesn't try to launch/monitor anything - it just shows a full-screen
+# lock window (lockScreenColor background, logo centered) and locks the
+# desktop (Ctrl+Shift+S still unlocks/exits). Useful before an app has
+# been installed on this deployment yet.
+appEXEPath = r'' # e.g. r'C:/Users/admin/Neuronic/Apps/Skeletal Pop/Skeletal Pop Win'
+appEXEName = '' # e.g. skeletal-pop.exe
+
+# Command-line arguments guard.py passes to appEXEName when launching it
+# (not used for the Chrome-kiosk case - see appURL below). A list, since
+# an app can need more than one, e.g. ["-fullscreen", "-vrmode"]. Leave
+# as [] if the app needs no arguments.
+appEXEParam = []
+
+# Background color of that lock window - a Tk color string, e.g. a hex
+# code or a name like "black".
+lockScreenColor = "#403a7a"
+
+# URL to launch in kiosk mode when appEXEPath/appEXEName point at Chrome
+# (i.e. is_chrome is True in guard.py). Not used otherwise.
+appURL = "https://www.neuronicgames.com"
+
+# Parameters for the EXE or URL for web browser
+appParams = "https://www.neuronicgames.com"
+
+# Client logo to be displayed on the desktop (also shown full-screen by
+# guard.py when appEXEName is blank - see its comment below)
+logoBrand = "neuronic.png"
+
+# Check for latest archive defined in archive.txt (False for AIR app)
+checkForUpdate = False
+
+# The name for the crash log
+crashPath = "crash.log"
+
+# --- OBS / camera settings (used by open_projector.py and reset_camera.py) ---
+# Whether launch.cmd runs start_obs.cmd at all. Leave False for exhibits
+# that don't use OBS - the rest of this section is unused in that case.
+startObs = False
+
+# OBS WebSocket connection (Tools > WebSocket Server Settings in OBS)
+obsHost = "127.0.0.1"
+obsPort = 4455
+obsPassword = ""
+
+# Fallback only, used by open_projector.py if OBS has no saved projector
+# layout yet (e.g. a brand new machine). Which monitor (0-indexed, per
+# OBS's own GetMonitorList) to open a Program projector on in that case.
+# Once you've arranged projectors in OBS and saved them (see
+# open_projector.py's docstring), this setting is no longer used - OBS's
+# own saved projector list drives everything, including any Preview/
+# Source projectors, with no settings.py changes needed.
+obsProjectorMonitor = 2
+
+# Exact name of the webcam source in OBS
+cameraSource = "Integrated Webcam"
+
+# Whether start_obs.cmd runs reset_camera.py (USB power-cycle + OBS
+# reconnect) automatically every time OBS starts. Leave False for
+# deployments with no webcam, or one that connects reliably on its own -
+# reset_camera.py is a no-op when this is False either way, so this is
+# mainly about avoiding a pointless log entry/delay on every OBS launch.
+# Set True once cameraHubComPort/cameraHubPort below are configured and
+# confirmed working.
+resetCameraOnStart = False
+
+# StarTech managed USB hub settings, used by reset_camera.py to power-cycle
+# the camera's port. Run `CUSBC /Q` to find the COM port, and `CUSBC
+# /G:COMn` to see port status and confirm which port number the camera is
+# plugged into.
+#
+# IMPORTANT: on the StarTech 5G4AINDRM-USB-A-HUB, confirmed by testing that
+# only port 1 does a true VBUS power cut - the other ports only disable the
+# data lines (a soft disconnect), which does NOT reset a camera's firmware
+# the way an actual unplug/replug does. Confirmed via Device Manager: on
+# port 1, the device fully disappears and reappears; on other ports it
+# stayed listed the whole time. Plug the camera into port 1. If you're
+# using a different hub model/unit, re-verify this per-port behavior
+# yourself before trusting it (see reset_camera.py's docstring).
+cameraHubComPort = ""  # e.g. "COM3" - REQUIRED, reset_camera.py no-ops without it
+cameraHubPort = "1"    # use port 1 - see note above
+cameraHubCusbcPath = "CUSBC"  # full path to CUSBC.exe if its folder isn't on PATH
+
+# How long to leave the camera's hub port powered off before restoring it
+cameraHubPowerOffSec = 5
+
+# ============================================================================
+# Video settings (send_video.py)
+# ============================================================================
+
+# Folders holding the intro/outro clips, named by story number (e.g.
+# "1.mp4", "2.mp4", ...). send_video.py re-encodes rather than
+# stream-copying, so these don't need to match the recording's codec,
+# resolution, or frame rate.
+introDir = r"C:\PATH\TO\INTRO"
+outroDir = r"C:\PATH\TO\OUTRO"
+
+# Folder the combined intro+recording+outro video is saved to
+videoOutputDir = r"C:\PATH\TO\OUTPUT"
+
+# Full path to ffmpeg.exe if it isn't on the system PATH, e.g.
+# r"C:\ffmpeg\bin\ffmpeg.exe". Leave as "ffmpeg" if it's on PATH.
+ffmpegPath = "ffmpeg"
+
+# Output resolution/frame rate that intro, recording, and outro are all
+# normalized to (letterboxed, not stretched) before being joined. Defaults
+# match the recording profile set up by setup_obs.py.
+videoTargetWidth = 1280
+videoTargetHeight = 720
+videoTargetFps = 30
+
+# ============================================================================
+# Folder cleanup settings (clean_up_folder.py)
+# ============================================================================
+
+# Default age cutoff, in days, for clean_up_folder.py - files whose
+# last-modified time is older than this many days are deleted. Can be
+# overridden per-run via clean_up_folder.py's own command-line arguments,
+# e.g. `clean_up_folder.py <folder> 6 --unit hours` or `... 30 --unit
+# minutes` to clean up on a shorter cycle than a full day. Also used as
+# the default "maxAge" (in days) for any cleanupFolders entry below that
+# doesn't specify its own.
+cleanupMaxAgeDays = 1
+
+# Folders to clean up automatically in the background, forever, via
+# `clean_up_folder.py --loop` - started by launch.cmd/launch.sh alongside
+# pulse.py, but only when this list is non-empty (they check it before
+# starting anything). Leave as [] for deployments that don't need cleanup.
+#
+# Each entry is either a plain folder path (uses the defaults below), or
+# a dict overriding any of maxAge/unit/pattern/recursive for that folder
+# only. For example, to delete anything older than 5 minutes in one
+# folder, and use the cleanupMaxAgeDays default for another:
+#   cleanupFolders = [
+#       {"folder": r"C:\...\SomeFolder", "maxAge": 5, "unit": "minutes"},
+#       r"C:\...\recordings",
+#   ]
+cleanupFolders = []
+
+# How often (seconds) the --loop above rechecks every cleanupFolders entry.
+cleanupIntervalSec = 60
+
+# ============================================================================
+# Email sending settings (send_email.py / send_email_bulk.py)
+# ============================================================================
+
+# --- Which email provider to use: "office365", "gmail", "greengeeks", or "mailgun" ---
+provider = "office365"
+
+sender_name = ""    # <smtp-sender-name>
+sender_email = ""   # <smtp-email-address>
+
+# --- Optional manual SMTP host/port override ---
+# Leave blank to use each provider's default. Required for "greengeeks"
+# (there is no universal GreenGeeks hostname - see below).
+smtp_host = ""
+smtp_port = None
+
+# --- Office 365 settings (only needed if provider == "office365") ---
+# OAuth2 / Modern Auth is required for MFA-enabled accounts.
+# See the setup steps at the top of oauth365.py for how to get these values.
+tenant_id = ""  # <Azure AD / Entra ID tenant ID>
+client_id = ""  # <Azure AD app registration's Application (client) ID>
+scopes = ["https://outlook.office365.com/SMTP.Send"]
+
+# --- Gmail settings (only needed if provider == "gmail") ---
+# Requires 2-Step Verification to be turned on for the account. Then
+# create an app password at https://myaccount.google.com/apppasswords
+# and paste the 16-character password below (spaces don't matter).
+gmail_app_password = ""
+
+# --- GreenGeeks settings (only needed if provider == "greengeeks") ---
+# GreenGeeks mail is plain cPanel hosting - there's no 2FA/OAuth option,
+# just an account password sent over an SSL connection (port 465).
+# Set smtp_host above to your mail server, usually mail.yourdomain.com
+# (confirm the exact value in cPanel > Email Accounts > Connect Devices),
+# and smtp_login / smtp_password below to the mailbox's login (usually
+# the full email address) and password.
+
+# --- Mailgun settings (only needed if provider == "mailgun") ---
+# Mailgun is a purpose-built transactional email service (not a mailbox) -
+# no 2FA/OAuth, just plain SMTP AUTH over STARTTLS. Get SMTP credentials
+# from the Mailgun dashboard: Sending > Domain settings > SMTP credentials
+# for your sending domain, and put them in smtp_login / smtp_password
+# below. The login there is usually postmaster@<your-mailgun-domain> and
+# is its own username/password pair - it does NOT need to match
+# sender_email above.
+
+# --- SMTP login/password (only needed if provider == "greengeeks" or "mailgun") ---
+smtp_login = ""
+smtp_password = ""
+
+# --- Daily send-count report (optional) ---
+# If set, once a calendar day is over, an email is sent to this address
+# reporting how many emails were sent that day. Leave blank to disable.
+send_daily_test_mail_to = ""
+
+# --- Sent-mail CSV log (optional) ---
+# If set, every send attempt is appended to mail_log.csv in this folder
+# (date/time, recipient, attachment size, success, error). Leave blank
+# to disable.
+mail_log_folder = ""
+
+# Folder path from where files are emailed (send_email_bulk.py only)
+folder = r''
+
+subject = "" # <email-subject>
+message = """\
+<html>
+  <head></head>
+  <body>
+    Your display email message here<br>
+  </body>
+</html>
+"""
+
+# ============================================================================
+# SharePoint upload settings (send_to_sharepoint.py)
+# ============================================================================
+
+# Reuses the same Azure AD app registration as Office 365 email above
+# (tenant_id / client_id). That app additionally needs the Microsoft Graph
+# delegated permission "Sites.ReadWrite.All" added under API permissions
+# (grant admin consent if your tenant requires it). First run opens an
+# interactive browser login same as the email OAuth2 flow - see oauth365.py.
+sharepoint_scopes = ["https://graph.microsoft.com/Sites.ReadWrite.All"]
+
+# Account used for the login prompt/token cache. Leave blank to reuse
+# sender_email above.
+sharepoint_username = ""
+
+# The SharePoint site to upload to, e.g. hostname "contoso.sharepoint.com"
+# and site_path "/sites/YourSiteName" (find both in the site's URL:
+# https://<hostname>/sites/<site_path-without-leading-slash>/...).
+sharepoint_hostname = ""   # <contoso.sharepoint.com>
+sharepoint_site_path = ""  # </sites/YourSiteName>
+
+# Default destination folder within the site's default document library.
+# Leave blank to upload to the library root. Can be overridden per-run with
+# send_to_sharepoint.py's --folder argument.
+sharepoint_folder = ""
