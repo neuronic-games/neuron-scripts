@@ -318,10 +318,41 @@ Most exhibits only need the **Required** settings. Every other section is only f
 
 | Setting | What it does | Default |
 |---|---|---|
-| `logoBrand` | The client logo image, from the `logo` folder. It's shown on the desktop and the lock screen (Windows only). | `"neuronic.png"` |
+| `logoBrand` | The client logo image, from the `logo` folder. It's shown on the desktop and the lock screen (Windows only). See [Change the logo](#change-the-logo). | `"neuronic.png"` |
 | `lockScreenColor` | The lock screen's background color, as a hex code or a color name (Windows only). | `"#403a7a"` |
 | `checkForUpdate` | `True` makes `launch.cmd` check for a newer app version on each start, using `archive.txt` in the app folder. Use it for zipped apps such as Unity builds. | `False` |
 | `crashPath` | The log file `guard.py` writes to, in the scripts folder. | `"crash.log"` |
+
+### Change the logo
+
+On Windows, `guard.py` shows the logo in two places:
+
+- **Desktop background:** while the exhibit runs, the logo becomes the desktop wallpaper. Anyone who gets past the app sees it instead of the usual desktop.
+- **Lock screen:** if `appEXEName` is blank, a full-screen window shows the logo in the middle of a `lockScreenColor` background.
+
+Linux doesn't show the logo.
+
+**To use a client's logo:**
+
+1. **Prepare the image** as a **PNG** file. The lock screen can only show PNG (or GIF), not JPG. A transparent background blends into `lockScreenColor` on the lock screen. On the desktop, check how Windows displays it, or give the logo a solid background that matches `desktopColor`.
+2. **Size it to fit the screen.** The lock screen shows the image at its **actual pixel size** and doesn't shrink it, so a large image gets cut off. Around **800–1200 pixels wide** suits a 1920×1080 display.
+3. **Give it a new name** and copy it into the `logo` folder, for example `logo\cmh.png`.
+   > **Don't replace `neuronic.png`.** It's part of the repo, so overwriting it makes the automatic `git pull` in `launch.cmd` fail. That stops the scripts from updating. A new file name avoids this.
+4. **Point the settings at it** in `settings.py`:
+   ```python
+   logoBrand = "cmh.png"
+   ```
+   Use only the file name, without the `logo\` folder.
+5. **Optional colors.** These are hex codes or color names:
+   - `lockScreenColor` sets the lock screen's background.
+   - `desktopColor = RGB(255, 255, 255)` sets the desktop color around the wallpaper logo. It's black by default; note the different format.
+6. **Restart the exhibit** to see it. Run `launch.cmd`, or press **Ctrl+Shift+S** and start it again.
+
+**How the logo fills the desktop** follows Windows' own wallpaper setting. Go to **Settings → Personalization → Background → Choose a fit for your desktop image**. **Center** shows the logo at its real size, and **Fit** scales it to the screen without cropping.
+
+**After quitting with Ctrl+Shift+S,** the desktop wallpaper is set back to the first image in the `background` folder.
+
+**Same logo on every machine?** Commit the new file to the repo, and `git pull` will deliver it to every exhibit. For a single machine, just copy the file in. Git leaves files it doesn't track alone.
 
 ### OBS and camera (only for exhibits that use OBS; Windows only)
 
@@ -443,6 +474,8 @@ When new settings are added to `settings.py.sample`, copy the ones you need into
 | Exhibit doesn't start after a reboot | Check there's a shortcut in `shell:startup` and that Windows signs in automatically (step 6). |
 | PowerShell shortcut command fails | Create the shortcuts by hand instead (step 6). |
 | App keeps crashing | Check `crash.log` in the scripts folder. |
+| Lock screen shows no logo, or only part of it | Check `logoBrand` matches a **PNG** file in the `logo` folder. If only part shows, make the image smaller ([Change the logo](#change-the-logo)). |
+| `git pull` fails with *Your local changes would be overwritten* | A file from the repo was changed on this machine, often the logo. Run `git checkout -- logo` to undo, then use a new file name ([Change the logo](#change-the-logo)). |
 | **Linux:** `externally-managed-environment` when installing packages | Add `--break-system-packages` (Install on Linux, step 3). |
 | **Linux:** `Permission denied` running `launch.sh` | Run `chmod +x ~/Documents/Neuronic/neuron-scripts/launch.sh`. |
 | **Linux:** the app doesn't start | Check `guard.log` in the scripts folder. Make sure the app file can run (`chmod +x`), and that `appEXEPath` and `appEXEName` are right. |
