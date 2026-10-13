@@ -6,8 +6,15 @@ import os, sys, time, json, socket, platform, subprocess, shutil, ssl, getpass
 import urllib.request, urllib.parse
 from datetime import datetime, timedelta
 
+import argparse
+
 import settings_loader  # must run before `import settings` below
 import settings
+
+_parser = argparse.ArgumentParser(description='Report this machine\'s status to PulseBoard.')
+_parser.add_argument('--test', action='store_true',
+                     help='Send one report, show the result, and exit (doesn\'t clear crash.log).')
+args = _parser.parse_args()
 
 _IS_WIN = sys.platform == 'win32'
 _IS_MAC = sys.platform == 'darwin'
@@ -248,14 +255,31 @@ def send_pulse(status='', include_crashes=False):
             result = json.loads(resp.read())
         if result.get('ok'):
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Pulse OK")
-        else:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Server error: {result.get('error', 'unknown')}")
+            return True
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Server error: {result.get('error', 'unknown')}")
     except Exception as e:
         print(f"Warning: could not reach server ({e})")
+    return False
 
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
 CRASH_PULSE_INTERVAL = 5 * 60 * 60  # 5 hours in seconds
+
+# ── Test mode: one report, then exit ─────────────────────────────────────────
+
+if args.test:
+    print(f"Testing {settings.exhibitName} (tab {settings.sheetName}) → {pulse_url}")
+    running = bool(is_running())
+    exe = getattr(settings, 'appEXEName', '') or '(none set)'
+    print(f"App {exe}: {'running' if running else 'not running'}")
+    # Crashes are left out so the test doesn't clear crash.log.
+    ok = send_pulse(status='Ok' if running else '')
+    if ok:
+        print(f"Success - check the '{settings.sheetName}' tab for row '{settings.exhibitName}'.")
+    else:
+        print("Failed - see the message above. Check sheetID, sheetName and exhibitName "
+              "in settings.py, and that this PC can reach zapsheets.com.")
+    sys.exit(0 if ok else 1)
 
 print(f"Monitoring {settings.exhibitName} → {pulse_url}")
 send_pulse(include_crashes=True)
