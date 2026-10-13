@@ -298,7 +298,7 @@ Leave `sheetID` blank, the default, and PulseBoard is off. `launch.cmd` and `lau
 
 | Setting | What it does | Example |
 |---|---|---|
-| `sheetID` | The Google Sheet that PulseBoard reports go to. **Blank = PulseBoard off.** | `"1FDmuen…"` |
+| `sheetID` | The Google Sheet that PulseBoard reports go to. **Blank = PulseBoard off.** | `"<your-sheet-id>"` |
 | `orgName` | The site or client. It's the name of this machine's tab in the sheet, and machines with the same `orgName` are grouped together. If the tab doesn't exist yet, it's created on the first report. Older settings files call this `sheetName`, which still works. | `"CMH"` |
 | `exhibitName` | This machine's name. It must be **unique on that tab**, because it's how PulseBoard finds this machine's row. Use capitals and dashes, with no spaces. | `"SKELETAL-POP-1"` |
 
@@ -449,7 +449,7 @@ It's **off by default**. Leave `sheetID` blank and nothing is sent.
    - Go to <https://zapsheets.com/app/pulseboard>, paste the sheet's link or ID, and click **Set Up PulseBoard**.
 2. **Fill in the settings** in each machine's `settings.py`:
    ```python
-   sheetID     = "1FDmuenqlcFrYcqWEsHem3PApsGxmyf87t_M1nSZmnxQ"   # the sheet's ID
+   sheetID     = "<your-sheet-id>"  # from the sheet's address
    orgName     = "CMH"              # site or client: its tab on the sheet
    exhibitName = "SKELETAL-POP-1"   # unique name for this machine on that tab
    ```
