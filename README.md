@@ -91,6 +91,8 @@ py -3 pulse.py --test
 
 It sends a single report, then stops. A success ends with `Success - check the '<sheetName>' tab for row '<exhibitName>'`, and the machine appears on that tab within a few seconds. A failure ends with `Failed` and the reason, such as a wrong `sheetID` or no internet. A test report doesn't clear `crash.log`.
 
+On success it also prints a **Client link**: a read-only PulseBoard page showing only this tab's machines, with no login needed. It's created automatically the first time a tab reports, then reused, so you can send the same link to the client.
+
 ### 6. Start the exhibit automatically, and add desktop and taskbar shortcuts
 
 Put a shortcut in the **Startup** folder (`shell:startup`) so the exhibit starts whenever Windows signs in. Put another on the **desktop**, and pin it to the **taskbar**, for restarting the exhibit by hand.
@@ -205,7 +207,7 @@ python3 -c "import settings_loader, settings; print('settings.py OK')"
 python3 pulse.py --test
 ```
 
-It sends one report and stops. Look for `Success`, then check the machine appears on PulseBoard.
+It sends one report and stops. Look for `Success` and the **Client link** for this tab, then check the machine appears on PulseBoard.
 
 ### 6. Start, stop, and start automatically
 
