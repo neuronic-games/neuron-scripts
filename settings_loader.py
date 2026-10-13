@@ -36,3 +36,9 @@ if "settings" not in sys.modules:
     _module = importlib.util.module_from_spec(_spec)
     sys.modules["settings"] = _module
     _spec.loader.exec_module(_module)
+
+    # appName was renamed to appFolder. Older settings.py files (which git
+    # never updates) still say appName - accept it so those machines keep
+    # working after `git pull` brings in the renamed scripts.
+    if not getattr(_module, "appFolder", "") and getattr(_module, "appName", ""):
+        _module.appFolder = _module.appName

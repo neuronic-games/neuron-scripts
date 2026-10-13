@@ -65,9 +65,9 @@ def versionCompare(v1, v2):
 #############################################################
 
 def checkUpdateStatus():
-    extract_dir = os.path.join(settings.appPath, settings.appName)
-    archive_info_file = os.path.join(settings.appPath, settings.appName, "archive.txt")
-    version_cur_file = os.path.join(settings.appPath, settings.appName, "version.txt")
+    extract_dir = os.path.join(settings.appPath, settings.appFolder)
+    archive_info_file = os.path.join(settings.appPath, settings.appFolder, "archive.txt")
+    version_cur_file = os.path.join(settings.appPath, settings.appFolder, "version.txt")
     current_version = "0.0"
     newPath = os.getcwd()
 

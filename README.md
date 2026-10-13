@@ -302,7 +302,7 @@ Most exhibits only need the **Required** settings. Every other section is only f
 | Setting | What it does | Example |
 |---|---|---|
 | `appPath` | The folder that holds the apps. By default it's `Documents\Neuronic`, found even if Documents has been moved. Older installs use `r'C:\Users\<user>\Documents\Neuronic\Apps'`. | (leave as is) |
-| `appName` | The app's folder name inside `appPath`. Updates are downloaded here. | `'Skeletal Pop'` |
+| `appFolder` | The app's folder name inside `appPath`. Updates are downloaded and unzipped here. Older settings files call this `appName`, which still works. | `'Skeletal Pop'` |
 | `appEXEPath` | The folder that contains the app's `.exe`. | `r'C:\Users\admin\Documents\Neuronic\Skeletal Pop\Skeletal Pop Win'` |
 | `appEXEName` | The `.exe` file that `guard.py` starts and watches. **Leave it blank** to show only a full-screen lock screen with the logo, which is useful before the app is installed. | `'skeletal-pop.exe'` |
 | `appEXEParam` | Extra command-line options for the app, as a list. | `["-fullscreen"]` or `[]` |
@@ -442,7 +442,7 @@ To install a new app from its `archive.txt` link:
 py -3 install.py --archive https://example.com/path/to/archive.txt
 ```
 
-That creates `appPath\appName`, downloads the app and unzips it there.
+That creates `appPath\appFolder`, downloads the app and unzips it there.
 
 **Extra apps on start:** to start other programs before the exhibit locks the desktop, copy `launch_aux.cmd.sample` to `launch_aux.cmd` and add their commands.
 
