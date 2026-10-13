@@ -1,1 +1,268 @@
 # neuron-scripts
+
+Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch the exhibit app, lock down the desktop, report the machine's health to PulseBoard, and keep the app and scripts up to date.
+
+- [What runs on an exhibit](#what-runs-on-an-exhibit)
+- [Install on Windows](#install-on-windows)
+- [Edit the settings](#edit-the-settings)
+- [Start the exhibit](#start-the-exhibit)
+- [Updating](#updating)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## What runs on an exhibit
+
+`launch.cmd` starts everything, in this order:
+
+1. Stops any Python scripts that are already running.
+2. Runs `git pull` to get the latest scripts.
+3. **`archive_update.py`**: if `checkForUpdate` is on, downloads and unzips a newer version of the app.
+4. **`start_obs.cmd`**: starts OBS Studio, only if `startObs` is on.
+5. **`pulse.py`**: sends this machine's status to PulseBoard (the Google Sheet) on a regular schedule.
+6. **`clean_up_folder.py --loop`**: deletes old files, only if `cleanupFolders` is set.
+7. **`launch_aux.cmd`**: your own extra launch steps, only if that file exists.
+8. **`guard.py`**: starts the exhibit app full-screen, restarts it if it crashes, and locks the desktop.
+
+Press **Ctrl+Shift+S** to quit the app and unlock the desktop.
+
+---
+
+## Install on Windows
+
+Run every command below in **Command Prompt** (`cmd`), not PowerShell. The `%USERPROFILE%` paths only work in Command Prompt.
+
+### 1. Install Python and Git
+
+```bat
+winget install Python.Python.3.11
+winget install Git.Git
+```
+
+**Close Command Prompt and open a new one** so Windows picks up the new `py` and `git` commands. Then check both work:
+
+```bat
+py -3 --version
+git --version
+```
+
+You should see `Python 3.11.x` and a Git version. If either says *not recognized*, see [Troubleshooting](#troubleshooting).
+
+### 2. Get the scripts
+
+The scripts must live at `Documents\Neuronic\neuron-scripts`, because `launch.cmd` looks for them there.
+
+```bat
+mkdir "%USERPROFILE%\Documents\Neuronic"
+cd "%USERPROFILE%\Documents\Neuronic"
+git clone https://github.com/neuronic-games/neuron-scripts
+cd "%USERPROFILE%\Documents\Neuronic\neuron-scripts"
+```
+
+> **Older installs** keep their apps in `%USERPROFILE%\Documents\Neuronic\Apps`. If you're updating one of those machines, see `appPath` under [Edit the settings](#edit-the-settings).
+
+### 3. Install the Python packages
+
+```bat
+py -3 -m pip install --upgrade pip
+py -3 -m pip install -r requirements.txt
+```
+
+### 4. Create your settings file
+
+```bat
+copy settings.py.sample settings.py
+notepad settings.py
+```
+
+Each machine has its own `settings.py`. Git never overwrites it, so your settings survive updates. Edit it as described in the next section, then save.
+
+### 5. Check it works
+
+Send one status report to PulseBoard:
+
+```bat
+py -3 pulse.py
+```
+
+You should see `Monitoring <exhibitName> → https://zapsheets.com/...`. The machine should then appear on the `sheetName` tab of the Google Sheet within a minute. Press **Ctrl+C** to stop.
+
+---
+
+## Edit the settings
+
+Open the file with:
+
+```bat
+notepad "%USERPROFILE%\Documents\Neuronic\neuron-scripts\settings.py"
+```
+
+**How to edit `settings.py`**
+
+- Each setting looks like `name = value`. Only change the part after `=`.
+- Text goes inside quotes: `exhibitName = "SKELETAL-POP-1"`.
+- For Windows folder paths, put an `r` in front of the quotes so the backslashes work: `appEXEPath = r'C:\Users\admin\Documents\Neuronic\Skeletal Pop'`.
+- On/off settings are `True` or `False`, capitalized and without quotes.
+- Lists use square brackets: `appEXEParam = ["-fullscreen", "-vrmode"]`. Use `[]` for an empty list.
+- Lines starting with `#` are comments and are ignored.
+- Replace every `???` with a real value.
+- After saving, check the file for mistakes with:
+  ```bat
+  py -3 -c "import settings_loader, settings; print('settings.py OK')"
+  ```
+  If there's an error, it shows the line number.
+
+Most exhibits only need the **Required** settings. Every other section is only for exhibits that use that feature.
+
+### Required: PulseBoard reporting
+
+| Setting | What it does | Example |
+|---|---|---|
+| `sheetID` | The Google Sheet that PulseBoard reports go to. Leave it as it is unless you're told otherwise. | `"1FDmuen…"` |
+| `sheetName` | The tab in that sheet for this site or client. If the tab doesn't exist yet, it's created on the first report. | `"CMH"` |
+| `exhibitName` | This machine's name. It must be **unique on that tab**, because it's how PulseBoard finds this machine's row. Use capitals and dashes, with no spaces. | `"SKELETAL-POP-1"` |
+
+### Required: the exhibit app
+
+| Setting | What it does | Example |
+|---|---|---|
+| `appPath` | The folder that holds the apps. By default it's `Documents\Neuronic`, found even if Documents has been moved. Older installs use `r'C:\Users\<user>\Documents\Neuronic\Apps'`. | (leave as is) |
+| `appName` | The app's folder name inside `appPath`. Updates are downloaded here. | `'Skeletal Pop'` |
+| `appEXEPath` | The folder that contains the app's `.exe`. | `r'C:\Users\admin\Documents\Neuronic\Skeletal Pop\Skeletal Pop Win'` |
+| `appEXEName` | The `.exe` file that `guard.py` starts and watches. **Leave it blank** to show only a full-screen lock screen with the logo, which is useful before the app is installed. | `'skeletal-pop.exe'` |
+| `appEXEParam` | Extra command-line options for the app, as a list. | `["-fullscreen"]` or `[]` |
+
+**Web exhibits (Chrome kiosk):** set `appEXEPath` to Chrome's folder and `appEXEName` to `chrome.exe`. Then put the page to open in `appURL`. Chrome opens full-screen in kiosk mode, and `appEXEParam` is ignored.
+
+| Setting | What it does |
+|---|---|
+| `appURL` | The web page Chrome opens in kiosk mode. Only used for Chrome. |
+| `appParams` | Older setting, kept for compatibility. |
+
+### Look and behavior
+
+| Setting | What it does | Default |
+|---|---|---|
+| `logoBrand` | The client logo image, from the `logo` folder. It's shown on the desktop and the lock screen. | `"neuronic.png"` |
+| `lockScreenColor` | The lock screen's background color, as a hex code or a color name. | `"#403a7a"` |
+| `checkForUpdate` | `True` makes `launch.cmd` check for a newer app version on each start, using `archive.txt` in the app folder. Use it for zipped apps such as Unity builds. | `False` |
+| `crashPath` | The log file `guard.py` writes to, in the scripts folder. | `"crash.log"` |
+
+### OBS and camera (only for exhibits that use OBS)
+
+| Setting | What it does |
+|---|---|
+| `startObs` | `True` makes `launch.cmd` start OBS. Leave it `False` if the exhibit doesn't use OBS, and the rest of this section is ignored. |
+| `obsHost`, `obsPort`, `obsPassword` | The OBS WebSocket connection. Find these in OBS under **Tools → WebSocket Server Settings**. |
+| `obsProjectorMonitor` | Which monitor (counting from 0) gets the projector, if OBS has no saved projector layout yet. |
+| `cameraSource` | The webcam source's exact name in OBS. |
+| `resetCameraOnStart` | `True` restarts the camera's power each time OBS starts. Only turn this on after the hub settings below are confirmed working. |
+| `cameraHubComPort` | The COM port of the StarTech USB hub, such as `"COM3"`. Run `CUSBC /Q` to find it. Camera resets don't happen without it. |
+| `cameraHubPort` | The hub port the camera is plugged into. **Use port 1**, the only port that fully cuts power. |
+| `cameraHubCusbcPath` | The full path to `CUSBC.exe` if Windows can't find it on its own. |
+| `cameraHubPowerOffSec` | How many seconds the camera stays off during a reset. |
+
+### Video (`send_video.py`)
+
+| Setting | What it does |
+|---|---|
+| `introDir`, `outroDir` | The folders with intro and outro clips, named by story number (`1.mp4`, `2.mp4`, and so on). |
+| `videoOutputDir` | Where finished videos are saved. |
+| `ffmpegPath` | Leave it as `"ffmpeg"` if Windows can find ffmpeg on its own. Otherwise use the full path to `ffmpeg.exe`. |
+| `videoTargetWidth`, `videoTargetHeight`, `videoTargetFps` | The size and frame rate every clip is converted to before they're joined. |
+
+### Folder cleanup (`clean_up_folder.py`)
+
+| Setting | What it does |
+|---|---|
+| `cleanupFolders` | The folders to clean automatically while the exhibit runs. Leave it as `[]` to turn cleanup off. Each item is either a folder path, or something like `{"folder": r"C:\...", "maxAge": 5, "unit": "minutes"}` to set the age for that folder. |
+| `cleanupMaxAgeDays` | Files older than this many days are deleted, unless an item above sets its own age. |
+| `cleanupIntervalSec` | How often, in seconds, the folders are checked. |
+
+### Email (`send_email.py`, `send_email_bulk.py`)
+
+| Setting | What it does |
+|---|---|
+| `provider` | Which email service to use: `"office365"`, `"gmail"`, `"greengeeks"` or `"mailgun"`. |
+| `sender_name`, `sender_email` | Who emails come from. |
+| `smtp_host`, `smtp_port` | Leave these blank to use the provider's defaults. GreenGeeks requires `smtp_host`, usually `mail.yourdomain.com`. |
+| `tenant_id`, `client_id`, `scopes` | Office 365 only. These come from the Azure app registration; the steps are at the top of `oauth365.py`. |
+| `gmail_app_password` | Gmail only. Create one at <https://myaccount.google.com/apppasswords>. The account needs 2-Step Verification turned on first. |
+| `smtp_login`, `smtp_password` | GreenGeeks and Mailgun only. The mailbox or SMTP login. |
+| `send_daily_test_mail_to` | If set, a daily email with the number of emails sent goes to this address. |
+| `mail_log_folder` | If set, every send is logged to `mail_log.csv` in this folder. |
+| `folder` | `send_email_bulk.py` only. The folder whose files get emailed. |
+| `subject`, `message` | The email's subject and HTML body. |
+
+### SharePoint upload (`send_to_sharepoint.py`)
+
+This uses the same Azure app as Office 365 email, with the **Sites.ReadWrite.All** permission added.
+
+| Setting | What it does |
+|---|---|
+| `sharepoint_username` | The account to sign in with. Leave it blank to use `sender_email`. |
+| `sharepoint_hostname`, `sharepoint_site_path` | From the site's address. For `https://contoso.sharepoint.com/sites/Exhibits`, they're `"contoso.sharepoint.com"` and `"/sites/Exhibits"`. |
+| `sharepoint_folder` | The folder to upload to inside the site's documents. Leave it blank for the top level. |
+
+> **Keep passwords out of Git.** `settings.py` is meant to stay on the machine. Never commit it, and don't put real passwords or keys in `settings.py.sample`.
+
+### Trying settings without changing `settings.py`
+
+Copy the settings to a new file, edit the copy, and start the exhibit with it:
+
+```bat
+copy settings.py settings-edit.py
+notepad settings-edit.py
+launch.cmd settings-edit.py
+```
+
+Plain `launch.cmd` goes back to `settings.py`.
+
+---
+
+## Start the exhibit
+
+```bat
+"%USERPROFILE%\Documents\Neuronic\neuron-scripts\launch.cmd"
+```
+
+To install a new app from its `archive.txt` link:
+
+```bat
+py -3 install.py --archive https://example.com/path/to/archive.txt
+```
+
+That creates `appPath\appName`, downloads the app and unzips it there.
+
+**Extra apps on start:** to start other programs before the exhibit locks the desktop, copy `launch_aux.cmd.sample` to `launch_aux.cmd` and add their commands.
+
+---
+
+## Updating
+
+`launch.cmd` runs `git pull` on every start, so the scripts update themselves. To update by hand:
+
+```bat
+cd "%USERPROFILE%\Documents\Neuronic\neuron-scripts"
+git pull
+py -3 -m pip install -r requirements.txt
+```
+
+When new settings are added to `settings.py.sample`, copy the ones you need into your `settings.py`. Any setting you don't add keeps its default value.
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `'py' is not recognized` or `'git' is not recognized` | Close Command Prompt and open a new one. If it still fails, run the `winget install` command again, or install from <https://python.org> (tick **Add python.exe to PATH**) or <https://git-scm.com>. |
+| `Settings file not found` | You skipped `copy settings.py.sample settings.py`, or you ran the scripts from a different folder. |
+| `SyntaxError` mentioning `settings.py` | There's a typo in `settings.py`, often a missing quote or bracket, or `true` instead of `True`. The error message gives the line number. |
+| `ERROR: Application not found` | `appEXEPath` and `appEXEName` don't point to a real `.exe`. Check both, and check the `r` in front of the path. |
+| `launch.cmd` can't find the scripts | The scripts must be in `%USERPROFILE%\Documents\Neuronic\neuron-scripts`. |
+| `unable to get local issuer certificate` | Run `py -3 -m pip install certifi`. |
+| `ModuleNotFoundError: No module named ...` | Run `py -3 -m pip install -r requirements.txt` again. |
+| Machine doesn't appear on PulseBoard | Check `sheetID`, `sheetName` and `exhibitName`, then run `py -3 pulse.py` and read the message. |
+| Desktop stays locked | Press **Ctrl+Shift+S**. |
+| App keeps crashing | Check `crash.log` in the scripts folder. |
