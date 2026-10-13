@@ -4,6 +4,7 @@ Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch t
 
 - [What runs on an exhibit](#what-runs-on-an-exhibit)
 - [Install on Windows](#install-on-windows)
+  - [Start automatically and add a desktop shortcut](#6-start-the-exhibit-automatically-and-add-a-desktop-shortcut)
 - [Edit the settings](#edit-the-settings)
 - [Start the exhibit](#start-the-exhibit)
 - [Updating](#updating)
@@ -19,7 +20,7 @@ Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch t
 2. Runs `git pull` to get the latest scripts.
 3. **`archive_update.py`**: if `checkForUpdate` is on, downloads and unzips a newer version of the app.
 4. **`start_obs.cmd`**: starts OBS Studio, only if `startObs` is on.
-5. **`pulse.py`**: sends this machine's status to PulseBoard (the Google Sheet) on a regular schedule.
+5. **`pulse.py`**: sends this machine's status to PulseBoard (the Google Sheet) when it starts, when the app comes up, and every 5 hours after that.
 6. **`clean_up_folder.py --loop`**: deletes old files, only if `cleanupFolders` is set.
 7. **`launch_aux.cmd`**: your own extra launch steps, only if that file exists.
 8. **`guard.py`**: starts the exhibit app full-screen, restarts it if it crashes, and locks the desktop.
@@ -85,7 +86,39 @@ Send one status report to PulseBoard:
 py -3 pulse.py
 ```
 
-You should see `Monitoring <exhibitName> → https://zapsheets.com/...`. The machine should then appear on the `sheetName` tab of the Google Sheet within a minute. Press **Ctrl+C** to stop.
+You should see `Monitoring <exhibitName> → https://zapsheets.com/...`. The first report is sent straight away, so the machine should appear on the `sheetName` tab of the Google Sheet within a few seconds. Press **Ctrl+C** to stop.
+
+### 6. Start the exhibit automatically, and add a desktop shortcut
+
+Put a shortcut to `launch.cmd` in the **Startup** folder (`shell:startup`) so the exhibit starts whenever Windows signs in. Put another on the **desktop** for restarting it by hand.
+
+**Quick way:** paste this whole line into Command Prompt. It creates a **Neuron Launcher** shortcut, with the Neuronic icon, in both places:
+
+```bat
+powershell -NoProfile -Command "$d = Join-Path $env:USERPROFILE 'Documents\Neuronic\neuron-scripts'; $w = New-Object -ComObject WScript.Shell; foreach ($f in 'Startup','Desktop') { $s = $w.CreateShortcut((Join-Path ([Environment]::GetFolderPath($f)) 'Neuron Launcher.lnk')); $s.TargetPath = (Join-Path $d 'launch.cmd'); $s.WorkingDirectory = $d; $s.IconLocation = (Join-Path $d 'logo\neuronic.ico'); $s.Save(); Write-Host ('Created ' + $s.FullName) }"
+```
+
+You should see two `Created ...` lines: one in `...\Start Menu\Programs\Startup` and one on the desktop. This works even if the Desktop folder has been moved to OneDrive.
+
+**By hand:**
+
+1. Press **Win+R**, type `shell:startup` and press **Enter**. The Startup folder opens.
+2. In a second File Explorer window, go to `Documents\Neuronic\neuron-scripts`.
+3. Hold **Alt** and drag `launch.cmd` into the Startup folder. Holding Alt makes a shortcut instead of moving the file.
+4. Right-click `launch.cmd` again and choose **Show more options → Send to → Desktop (create shortcut)**.
+5. Optional: rename the shortcuts **Neuron Launcher**. To change the icon, right-click a shortcut, choose **Properties → Change Icon**, and pick `logo\neuronic.ico`.
+
+> **Always use a shortcut, not a copy.** A copy of `launch.cmd` doesn't get the fixes `git pull` brings in. Moving the real file breaks `git pull` and `launch.cmd` itself.
+
+**Signing in automatically.** The Startup folder only runs once someone signs in. For a kiosk that should start the exhibit after a power cut or reboot, set Windows to sign in on its own:
+
+1. Press **Win+R**, type `netplwiz` and press **Enter**.
+2. Untick **Users must enter a user name and password to use this computer**, then click **OK** and enter the account's password.
+3. If that checkbox is missing (common on Windows 11), right-click `fix_autologon_checkbox.cmd` in the scripts folder, choose **Run as administrator**, restart, and try again.
+
+**Test it:** restart the PC. The exhibit should start by itself after Windows signs in.
+
+**Turn off auto-start:** delete the **Neuron Launcher** shortcut from `shell:startup`. The desktop shortcut can stay.
 
 ---
 
@@ -265,4 +298,6 @@ When new settings are added to `settings.py.sample`, copy the ones you need into
 | `ModuleNotFoundError: No module named ...` | Run `py -3 -m pip install -r requirements.txt` again. |
 | Machine doesn't appear on PulseBoard | Check `sheetID`, `sheetName` and `exhibitName`, then run `py -3 pulse.py` and read the message. |
 | Desktop stays locked | Press **Ctrl+Shift+S**. |
+| Exhibit doesn't start after a reboot | Check there's a shortcut in `shell:startup` and that Windows signs in automatically (step 6). |
+| PowerShell shortcut command fails | Create the shortcuts by hand instead (step 6). |
 | App keeps crashing | Check `crash.log` in the scripts folder. |
