@@ -60,14 +60,13 @@ reset_desktop = getattr(settings, 'resetDesktopColor', RGB(0, 0, 0)) if _IS_WIN 
 # Tk color string, e.g. "#403a7a" or a name like "black".
 lock_screen_color = getattr(settings, 'lockScreenColor', '#403a7a')
 
-# Keep the logo lock window up *behind* the running app (Windows only), so
-# that while the app is crashed/restarting you see the logo, not the
-# desktop. It covers the main monitor only; set lockBehindApp = False if
-# another window (e.g. an OBS projector) has to show on that monitor.
+# Keep a start screen (restartMessage) up on every display while the app
+# runs (Windows only), at the bottom of the window stack: it only hides
+# the desktop, so while the app is crashed/restarting you see the message
+# instead. The app, OBS and any other window stay in front of it.
 lock_behind_app = bool(getattr(settings, 'lockBehindApp', True))
 
-# Text shown on that behind-the-app window (instead of the logo) while the
-# app restarts, and its color.
+# Text shown on that start screen (instead of the logo), and its color.
 restart_message       = getattr(settings, 'restartMessage', 'STARTING. PLEASE WAIT.')
 restart_message_color = getattr(settings, 'restartMessageColor', 'white')
 
@@ -230,109 +229,214 @@ def _window_title(hwnd):
     return buf.value
 
 
+def _make_dpi_aware():
+    """Work in real pixels on every monitor, so the windows line up with
+    each display exactly even when displays use different scaling (125%,
+    150%...). Must run before any window is created."""
+    try:
+        windll.shcore.SetProcessDpiAwareness(2)  # per-monitor aware
+    except Exception:
+        try:
+            windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
+
+def _monitor_rects():
+    """[(x, y, width, height, is_primary), ...] for every display, primary
+    first. Falls back to just the primary screen if enumeration fails."""
+    from ctypes import wintypes
+    user32 = windll.user32
+
+    class MONITORINFO(ctypes.Structure):
+        _fields_ = [('cbSize', wintypes.DWORD), ('rcMonitor', wintypes.RECT),
+                    ('rcWork', wintypes.RECT), ('dwFlags', wintypes.DWORD)]
+
+    rects = []
+    MonitorEnumProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC,
+                                         ctypes.POINTER(wintypes.RECT), wintypes.LPARAM)
+
+    def _cb(hmon, _hdc, _rect, _):
+        info = MONITORINFO()
+        info.cbSize = ctypes.sizeof(MONITORINFO)
+        if user32.GetMonitorInfoW(hmon, byref(info)):
+            r = info.rcMonitor
+            rects.append((r.left, r.top, r.right - r.left, r.bottom - r.top,
+                          bool(info.dwFlags & 1)))  # MONITORINFOF_PRIMARY
+        return True
+
+    try:
+        user32.GetMonitorInfoW.argtypes = [wintypes.HMONITOR, ctypes.POINTER(MONITORINFO)]
+        user32.EnumDisplayMonitors(None, None, MonitorEnumProc(_cb), 0)
+    except Exception as e:
+        print(f'Could not list displays ({e}) - covering the main one only.')
+    if not rects:
+        rects = [(0, 0, user32.GetSystemMetrics(0), user32.GetSystemMetrics(1), True)]
+    rects.sort(key=lambda r: not r[4])
+    return rects
+
+
+def _lowest_window_above_desktop(exclude):
+    """The bottom-most window that's actually on screen above the desktop:
+    visible, non-empty, not always-on-top (those stay above us anyway, and
+    inserting below one would make our window always-on-top too), and not
+    one of ours. Stops at the desktop itself (Progman / WorkerW). 0 if
+    there are no such windows."""
+    from ctypes import wintypes
+    user32 = windll.user32
+    user32.GetWindowLongW.argtypes = [wintypes.HWND, c_int]
+    user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, c_int]
+    lowest = [0]
+    cls = ctypes.create_unicode_buffer(64)
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def _cb(hwnd, _):
+        if hwnd in exclude or not user32.IsWindowVisible(hwnd):
+            return True
+        user32.GetClassNameW(hwnd, cls, 64)
+        if cls.value in ('Progman', 'WorkerW'):
+            return False  # reached the desktop - everything below is behind it
+        if user32.GetWindowLongW(hwnd, -20) & 0x8:  # WS_EX_TOPMOST
+            return True
+        r = wintypes.RECT()
+        user32.GetWindowRect(hwnd, byref(r))
+        if r.right - r.left > 0 and r.bottom - r.top > 0:
+            lowest[0] = hwnd
+        return True
+
+    user32.EnumWindows(_cb, 0)
+    return lowest[0]
+
+
 def show_lock_window(quit_event, behind_app=False, on_ready=None):
-    """Full-screen, borderless window (lock_screen_color background) with
-    the logo centered (or, behind_app=True, restart_message), blocking any access to the desktop underneath (the
-    wallpaper/desktop-color trick set in initApp() alone doesn't stop
-    someone from reaching desktop icons/taskbar in every case - an actual
-    covering window does).
+    """Borderless windows (lock_screen_color background), one covering each
+    display, blocking access to the desktop underneath (the wallpaper /
+    desktop-color trick set in initApp() alone doesn't stop someone from
+    reaching desktop icons in every case - an actual covering window does).
 
-    behind_app=False (no app configured): the window is always on top.
-    behind_app=True: the window is kept directly *below* the app's window,
-    so the app shows normally, and when it crashes/hangs and is restarted
-    the logo is what's left on screen instead of the desktop. The window
-    can't be activated (clicking/touching it doesn't bring it in front of
-    the app) and is re-tucked under the app every second in case anything
-    reordered it.
+    behind_app=False (no app configured): the windows are always on top,
+    with the logo centered on the main display.
 
-    on_ready is called once the window is up (used to start the app
-    monitor only then, so the app's first window opens above this one).
+    behind_app=True: the windows show restart_message and are kept at the
+    *bottom* of the window stack, just above the desktop, so they only
+    hide the desktop: the app, OBS (main window and projectors) and any
+    other window stay in front. When the app crashes/hangs and is
+    restarted, the message is what's left instead of the desktop. The
+    windows can't be activated (clicking/touching them doesn't bring them
+    forward), and they're moved back to the bottom every second in case
+    anything reordered them. If displays are added, removed or rearranged
+    (e.g. a TV switched off), the windows are rebuilt to match.
+
+    on_ready is called once the windows are up (used to start the app
+    monitor only then, so the app's first window opens above them).
     Runs its own Tk event loop on the calling thread (must be the main
     thread) until quit_event is set from elsewhere (e.g. the Ctrl+Shift+S
     hotkey, which runs on its own thread - only quit_event.set() is called
     from there, never anything Tk-related, since Tk isn't thread-safe)."""
     import tkinter as tk
+    from ctypes import wintypes
+
+    _make_dpi_aware()
+    user32 = windll.user32
+    user32.GetAncestor.restype = wintypes.HWND       # 64-bit-safe handles
+    user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, c_int,
+                                    c_int, c_int, c_int, wintypes.UINT]
+    user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+    user32.GetWindowLongW.argtypes = [wintypes.HWND, c_int]
+    user32.SetWindowLongW.argtypes = [wintypes.HWND, c_int, ctypes.c_long]
+    SWP_FLAGS = 0x0001 | 0x0002 | 0x0010  # NOSIZE | NOMOVE | NOACTIVATE
 
     root = tk.Tk()
-    root.overrideredirect(True)
-    if not behind_app:
-        root.attributes('-topmost', True)
-    root.configure(bg=lock_screen_color)
-    root.geometry(f'{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0')
+    root.withdraw()  # hidden owner of the per-display windows
 
-    if behind_app:
-        # Only ever seen while the app is down, so say what's happening.
-        # Negative font size = pixels, scaled to the screen.
-        size = max(24, root.winfo_screenheight() // 12)
-        label = tk.Label(root, text=restart_message, bg=lock_screen_color,
-                         fg=restart_message_color, font=('Segoe UI', -size, 'bold'),
-                         wraplength=int(root.winfo_screenwidth() * 0.9),
-                         justify='center')
-    else:
+    image = None
+    if not behind_app:
         logo_path = os.path.join(_script_dir, 'logo', logo_brand)
-        image = None
         if os.path.isfile(logo_path):
             try:
                 image = tk.PhotoImage(file=logo_path)
             except Exception as e:
                 print(f'Could not load logo image {logo_path}: {e}')
-        label = tk.Label(root, bg=lock_screen_color, image=image if image else None)
-        label.image = image  # keep a reference - PhotoImage is GC'd otherwise
-    label.place(relx=0.5, rely=0.5, anchor='center')
 
-    hwnd = 0
-    SWP_FLAGS = 0x0001 | 0x0002 | 0x0010  # NOSIZE | NOMOVE | NOACTIVATE
-    if behind_app:
-        root.update_idletasks()
-        from ctypes import wintypes
-        user32 = windll.user32
-        user32.GetAncestor.restype = wintypes.HWND       # 64-bit-safe handles
-        user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, c_int,
-                                        c_int, c_int, c_int, wintypes.UINT]
-        user32.SetForegroundWindow.argtypes = [wintypes.HWND]
-        user32.GetWindowLongW.argtypes = [wintypes.HWND, c_int]
-        user32.SetWindowLongW.argtypes = [wintypes.HWND, c_int, ctypes.c_long]
-        hwnd = user32.GetAncestor(root.winfo_id(), 2)  # GA_ROOT: the real top-level
-        # WS_EX_NOACTIVATE (clicks don't raise it) | WS_EX_TOOLWINDOW (no Alt+Tab)
-        exstyle = user32.GetWindowLongW(hwnd, -20)
-        user32.SetWindowLongW(hwnd, -20, exstyle | 0x08000000 | 0x00000080)
-        print('Restart-message window is up behind the app.')
+    state = {'monitors': [], 'tops': [], 'hwnds': [], 'app_hwnd': 0, 'ticks': 0}
 
-    state = {'app_hwnd': 0}
+    def _build():
+        for top in state['tops']:
+            top.destroy()
+        state['monitors'] = _monitor_rects()
+        state['tops'], state['hwnds'] = [], []
+        for x, y, w, h, primary in state['monitors']:
+            top = tk.Toplevel(root)
+            top.overrideredirect(True)
+            top.configure(bg=lock_screen_color)
+            top.geometry(f'{w}x{h}+{x}+{y}')  # '+-1920' = x of -1920 (a '-' alone means from the right)
+            if behind_app:
+                # Only ever seen while the app is down, so say what's
+                # happening. Negative font size = pixels, scaled to the display.
+                label = tk.Label(top, text=restart_message, bg=lock_screen_color,
+                                 fg=restart_message_color,
+                                 font=('Segoe UI', -max(24, h // 12), 'bold'),
+                                 wraplength=int(w * 0.9), justify='center')
+            else:
+                top.attributes('-topmost', True)
+                label = tk.Label(top, bg=lock_screen_color,
+                                 image=image if (image and primary) else None)
+                label.image = image  # keep a reference - PhotoImage is GC'd otherwise
+            label.place(relx=0.5, rely=0.5, anchor='center')
+            top.update_idletasks()
+            hwnd = user32.GetAncestor(top.winfo_id(), 2)  # GA_ROOT: the real top-level
+            if behind_app:
+                # WS_EX_NOACTIVATE (clicks don't raise it) | WS_EX_TOOLWINDOW (no Alt+Tab)
+                exstyle = user32.GetWindowLongW(hwnd, -20)
+                user32.SetWindowLongW(hwnd, -20, exstyle | 0x08000000 | 0x00000080)
+            state['tops'].append(top)
+            state['hwnds'].append(hwnd)
+        print(f'Lock screen covering {len(state["monitors"])} display(s)'
+              + (', behind all other windows.' if behind_app else '.'))
 
-    def _tuck_under_app():
-        try:
-            windows = _find_app_windows(APP_EXE_NAME)
-            if windows:
-                # Insert directly below the app's *lowest* window, so every
-                # app window (main window, splash, dialogs) stays in front.
-                windll.user32.SetWindowPos(hwnd, windows[-1], 0, 0, 0, 0, SWP_FLAGS)
-            app_hwnd = windows[0] if windows else 0
-            if app_hwnd and app_hwnd != state['app_hwnd']:
-                print(f'App window up ("{_window_title(app_hwnd)}", '
-                      f'{len(windows)} window(s)) - restart screen is behind it.')
-                # New app window (first start or a restart): try to give it
-                # focus. Windows may refuse - harmless, it's still in front.
-                windll.user32.SetForegroundWindow(app_hwnd)
-            elif not app_hwnd and state['app_hwnd']:
-                print('App window gone - showing the restart screen.')
-            state['app_hwnd'] = app_hwnd
-        except Exception as e:
-            print(f'Could not place lock window behind the app: {e}')
+    def _send_to_bottom():
+        ours = state['hwnds']
+        lowest = _lowest_window_above_desktop(set(ours))
+        if lowest:
+            user32.SetWindowPos(ours[0], lowest, 0, 0, 0, 0, SWP_FLAGS)
+            for prev, hwnd in zip(ours, ours[1:]):
+                user32.SetWindowPos(hwnd, prev, 0, 0, 0, 0, SWP_FLAGS)
 
-    def _poll_quit():
+    def _watch_app():
+        windows = _find_app_windows(APP_EXE_NAME)
+        app_hwnd = windows[0] if windows else 0
+        if app_hwnd and app_hwnd != state['app_hwnd']:
+            print(f'App window up ("{_window_title(app_hwnd)}").')
+            # New app window (first start or a restart): try to give it
+            # focus. Windows may refuse - harmless, it's still in front.
+            user32.SetForegroundWindow(app_hwnd)
+        elif not app_hwnd and state['app_hwnd']:
+            print('App window gone - showing the start screen.')
+        state['app_hwnd'] = app_hwnd
+
+    def _poll():
         if quit_event.is_set():
             root.destroy()
             return
-        if behind_app:
-            _tuck_under_app()
-        root.after(1000 if behind_app else 200, _poll_quit)
+        state['ticks'] += 1
+        try:
+            if state['ticks'] % 5 == 0 and _monitor_rects() != state['monitors']:
+                print('Displays changed - rebuilding the lock screen.')
+                _build()
+            if behind_app:
+                _send_to_bottom()
+                _watch_app()
+        except Exception as e:
+            print(f'Lock screen update failed: {e}')
+        root.after(1000, _poll)
 
     def _ready():
         if on_ready:
             on_ready()
-        _poll_quit()
+        _poll()
 
+    _build()
     root.after(200, _ready)
     root.mainloop()
 

@@ -325,8 +325,8 @@ Leave `sheetID` blank, the default, and PulseBoard is off. `launch.cmd` and `lau
 |---|---|---|
 | `logoBrand` | The client logo image, from the `logo` folder. It's shown on the desktop and the lock screen (Windows only). See [Change the logo](#change-the-logo). | `"neuronic.png"` |
 | `lockScreenColor` | The lock screen's background color, as a hex code or a color name (Windows only). | `"#403a7a"` |
-| `lockBehindApp` | `True` keeps a full-screen window up behind the app, so visitors see `restartMessage` instead of the desktop while a crashed app restarts (Windows only). It covers the main monitor only, so set it to `False` if another window, such as an OBS projector, must show on that monitor. | `True` |
-| `restartMessage` | The text on that window, on a `lockScreenColor` background. | `"STARTING. PLEASE WAIT."` |
+| `lockBehindApp` | `True` covers the desktop on every display with a start screen showing `restartMessage`, so visitors see it instead of the desktop while the app starts or restarts after a crash (Windows only). It sits behind every other window, so the app and OBS, including its projectors, stay in front. | `True` |
+| `restartMessage` | The text on the start screen, on a `lockScreenColor` background. | `"STARTING. PLEASE WAIT."` |
 | `restartMessageColor` | The text's color, as a hex code or a color name. | `"white"` |
 | `checkForUpdate` | `True` makes `launch.cmd` check for a newer app version on each start, using `archive.txt` in the app folder. Use it for zipped apps such as Unity builds. | `False` |
 | `crashPath` | The log file `guard.py` writes to, in the scripts folder. | `"crash.log"` |
@@ -336,9 +336,9 @@ Leave `sheetID` blank, the default, and PulseBoard is off. `launch.cmd` and `lau
 On Windows, `guard.py` shows the logo in two places:
 
 - **Desktop background:** while the exhibit runs, the logo becomes the desktop wallpaper. Anyone who gets past the app sees it instead of the usual desktop.
-- **Lock screen:** if `appEXEName` is blank, a full-screen window shows the logo in the middle of a `lockScreenColor` background.
+- **Lock screen:** if `appEXEName` is blank, the lock screen covers every display on a `lockScreenColor` background, with the logo in the middle of the main display.
 
-While the app runs, a full-screen window sits behind it instead, showing `restartMessage` ("STARTING. PLEASE WAIT.") rather than the logo. If the app crashes or hangs, visitors see that message while `guard.py` restarts it. Touching it doesn't bring it in front of the app. See `lockBehindApp`.
+While the app runs, a start screen covers the desktop on every display instead, showing `restartMessage` ("STARTING. PLEASE WAIT.") rather than the logo. It stays behind every other window, so it only hides the desktop. If the app crashes or hangs, visitors see that message while `guard.py` restarts it. Touching it doesn't bring it in front of other windows. See `lockBehindApp`.
 
 Linux doesn't show the logo.
 
