@@ -62,10 +62,9 @@ lock_screen_color = getattr(settings, 'lockScreenColor', '#403a7a')
 
 # Keep the logo lock window up *behind* the running app (Windows only), so
 # that while the app is crashed/restarting you see the logo, not the
-# desktop. Off by default when startObs is on, because the window would
-# also cover OBS projector windows on the exhibit screen.
-lock_behind_app = bool(getattr(settings, 'lockBehindApp',
-                               not getattr(settings, 'startObs', False)))
+# desktop. It covers the main monitor only; set lockBehindApp = False if
+# another window (e.g. an OBS projector) has to show on that monitor.
+lock_behind_app = bool(getattr(settings, 'lockBehindApp', True))
 
 # Text shown on that behind-the-app window (instead of the logo) while the
 # app restarts, and its color.

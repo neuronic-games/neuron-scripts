@@ -325,7 +325,7 @@ Leave `sheetID` blank, the default, and PulseBoard is off. `launch.cmd` and `lau
 |---|---|---|
 | `logoBrand` | The client logo image, from the `logo` folder. It's shown on the desktop and the lock screen (Windows only). See [Change the logo](#change-the-logo). | `"neuronic.png"` |
 | `lockScreenColor` | The lock screen's background color, as a hex code or a color name (Windows only). | `"#403a7a"` |
-| `lockBehindApp` | `True` keeps a full-screen window up behind the app, so visitors see `restartMessage` instead of the desktop while a crashed app restarts (Windows only). Set it to `False` if another window, such as an OBS projector, must show on the exhibit screen. | `True`, or `False` when `startObs` is on |
+| `lockBehindApp` | `True` keeps a full-screen window up behind the app, so visitors see `restartMessage` instead of the desktop while a crashed app restarts (Windows only). It covers the main monitor only, so set it to `False` if another window, such as an OBS projector, must show on that monitor. | `True` |
 | `restartMessage` | The text on that window, on a `lockScreenColor` background. | `"RESTARTING. PLEASE WAIT."` |
 | `restartMessageColor` | The text's color, as a hex code or a color name. | `"white"` |
 | `checkForUpdate` | `True` makes `launch.cmd` check for a newer app version on each start, using `archive.txt` in the app folder. Use it for zipped apps such as Unity builds. | `False` |

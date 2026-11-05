@@ -40,9 +40,9 @@ lockScreenColor = "#403a7a"
 
 # Windows only: keep a full-screen window up *behind* the app, so if the
 # app crashes or hangs, visitors see restartMessage (on a lockScreenColor
-# background) instead of the desktop while guard.py restarts it. Defaults
-# to True, or False when startObs is True, because it would also cover OBS
-# projector windows on the exhibit screen.
+# background) instead of the desktop while guard.py restarts it. On by
+# default. It covers the main monitor only, so set this to False if another
+# window, such as an OBS projector, has to show on that monitor.
 # lockBehindApp = True
 # restartMessage = "RESTARTING. PLEASE WAIT."
 # restartMessageColor = "white"
