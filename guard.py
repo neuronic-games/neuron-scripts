@@ -66,8 +66,9 @@ lock_screen_color = getattr(settings, 'lockScreenColor', '#403a7a')
 # instead. The app, OBS and any other window stay in front of it.
 lock_behind_app = bool(getattr(settings, 'lockBehindApp', True))
 
-# Text shown on that start screen (instead of the logo), and its color.
-restart_message       = getattr(settings, 'restartMessage', 'STARTING. PLEASE WAIT.')
+# Optional text shown under the start screen's animation (start_screen.py),
+# and its color. Blank = animation only.
+restart_message       = getattr(settings, 'restartMessage', '')
 restart_message_color = getattr(settings, 'restartMessageColor', 'white')
 
 # If no app is configured at all, guard.py just locks the desktop behind
@@ -359,31 +360,49 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
             except Exception as e:
                 print(f'Could not load logo image {logo_path}: {e}')
 
-    state = {'monitors': [], 'tops': [], 'hwnds': [], 'app_hwnd': 0, 'ticks': 0}
+    state = {'monitors': [], 'tops': [], 'hwnds': [], 'screens': [],
+             'app_hwnd': 0, 'ticks': 0}
+    t0 = time.monotonic()
+    if behind_app:
+        import start_screen
+
+    def _animate():
+        # Only animate while the app's window is gone (starting/restarting)
+        # - nobody can see the screen otherwise, so don't spend CPU on it.
+        if quit_event.is_set():
+            return
+        if not state['app_hwnd']:
+            t = time.monotonic() - t0
+            for screen in state['screens']:
+                screen.draw(t)
+        root.after(int(1000 / start_screen.FPS) if not state['app_hwnd'] else 500, _animate)
 
     def _build():
         for top in state['tops']:
             top.destroy()
         state['monitors'] = _monitor_rects()
-        state['tops'], state['hwnds'] = [], []
+        state['tops'], state['hwnds'], state['screens'] = [], [], []
         for x, y, w, h, primary in state['monitors']:
             top = tk.Toplevel(root)
             top.overrideredirect(True)
             top.configure(bg=lock_screen_color)
             top.geometry(f'{w}x{h}+{x}+{y}')  # '+-1920' = x of -1920 (a '-' alone means from the right)
             if behind_app:
-                # Only ever seen while the app is down, so say what's
-                # happening. Negative font size = pixels, scaled to the display.
-                label = tk.Label(top, text=restart_message, bg=lock_screen_color,
-                                 fg=restart_message_color,
-                                 font=('Segoe UI', -max(24, h // 12), 'bold'),
-                                 wraplength=int(w * 0.9), justify='center')
+                # Only ever seen while the app is down: the animated start
+                # screen (see start_screen.py), with restartMessage under it.
+                canvas = tk.Canvas(top, width=w, height=h, bg=lock_screen_color,
+                                   highlightthickness=0, bd=0)
+                canvas.place(x=0, y=0)
+                screen = start_screen.TkStartScreen(canvas, w, h, lock_screen_color,
+                                                    restart_message, restart_message_color)
+                screen.draw(time.monotonic() - t0)
+                state['screens'].append(screen)
             else:
                 top.attributes('-topmost', True)
                 label = tk.Label(top, bg=lock_screen_color,
                                  image=image if (image and primary) else None)
                 label.image = image  # keep a reference - PhotoImage is GC'd otherwise
-            label.place(relx=0.5, rely=0.5, anchor='center')
+                label.place(relx=0.5, rely=0.5, anchor='center')
             top.update_idletasks()
             hwnd = user32.GetAncestor(top.winfo_id(), 2)  # GA_ROOT: the real top-level
             if behind_app:
@@ -435,6 +454,8 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
         if on_ready:
             on_ready()
         _poll()
+        if behind_app:
+            _animate()
 
     _build()
     root.after(200, _ready)
