@@ -440,6 +440,7 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
             return
         state['ticks'] += 1
         try:
+            hide_taskbars()
             if state['ticks'] % 5 == 0 and _monitor_rects() != state['monitors']:
                 print('Displays changed - rebuilding the lock screen.')
                 _build()
@@ -523,16 +524,56 @@ def restore_desktop():
         wp = getWallpaper()
         if wp:
             ctypes.windll.user32.SystemParametersInfoW(20, 0, wp, 3)
-        windll.user32.ShowWindow(initApp.taskBarStatus, 9)
+        show_taskbars()
+
+def _taskbars():
+    """Every taskbar window: the main one (Shell_TrayWnd) plus one
+    Shell_SecondaryTrayWnd per extra display when Windows shows the
+    taskbar on all displays."""
+    from ctypes import wintypes
+    user32 = windll.user32
+    user32.FindWindowExW.restype = wintypes.HWND
+    user32.FindWindowExW.argtypes = [wintypes.HWND, wintypes.HWND,
+                                     wintypes.LPCWSTR, wintypes.LPCWSTR]
+    bars = []
+    main = user32.FindWindowExW(None, None, 'Shell_TrayWnd', None)
+    if main:
+        bars.append(main)
+    hwnd = None
+    while True:
+        hwnd = user32.FindWindowExW(None, hwnd, 'Shell_SecondaryTrayWnd', None)
+        if not hwnd:
+            break
+        bars.append(hwnd)
+    return bars
+
+def hide_taskbars():
+    """Hide every taskbar that's showing. Called at start and then
+    regularly, because Windows brings taskbars back on its own (a display
+    reconnected, Explorer restarted...)."""
+    if not _IS_WIN:
+        return
+    from ctypes import wintypes
+    user32 = windll.user32
+    user32.IsWindowVisible.argtypes = [wintypes.HWND]
+    user32.ShowWindow.argtypes = [wintypes.HWND, c_int]
+    for bar in _taskbars():
+        if user32.IsWindowVisible(bar):
+            user32.ShowWindow(bar, 0)  # SW_HIDE
+
+def show_taskbars():
+    from ctypes import wintypes
+    windll.user32.ShowWindow.argtypes = [wintypes.HWND, c_int]
+    for bar in _taskbars():
+        windll.user32.ShowWindow(bar, 5)  # SW_SHOW
 
 # ── Init ──────────────────────────────────────────────────────────────────────
 def initApp():
     initApp.isStarted = False
     kill_app()
     if _IS_WIN:
-        initApp.taskBarStatus     = windll.user32.FindWindowA(b'Shell_TrayWnd', None)
         initApp.consoleBarHandler = ctypes.windll.kernel32.GetConsoleWindow()
-        windll.user32.ShowWindow(initApp.taskBarStatus, 0)
+        hide_taskbars()
         windll.user32.ShowWindow(initApp.consoleBarHandler, 0)
         ctypes.windll.user32.SetSysColors(1, byref(c_int(1)), byref(c_int(desktop_color)))
         logo_path = os.path.join(_script_dir, 'logo', logo_brand)
@@ -563,6 +604,7 @@ def getTaskProcess(stop_event):
     import traceback
     try:
         while not stop_event.is_set():
+            hide_taskbars()  # Windows can bring them back on its own
             res = getTasks(APP_EXE_NAME)
             if stop_event.is_set():
                 # Quitting was requested while getTasks() was running -
