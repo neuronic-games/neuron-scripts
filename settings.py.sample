@@ -44,7 +44,7 @@ lockScreenColor = "#403a7a"
 # default. It covers the main monitor only, so set this to False if another
 # window, such as an OBS projector, has to show on that monitor.
 # lockBehindApp = True
-# restartMessage = "RESTARTING. PLEASE WAIT."
+# restartMessage = "STARTING. PLEASE WAIT."
 # restartMessageColor = "white"
 
 # URL to launch in kiosk mode when appEXEPath/appEXEName point at Chrome

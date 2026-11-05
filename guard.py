@@ -68,7 +68,7 @@ lock_behind_app = bool(getattr(settings, 'lockBehindApp', True))
 
 # Text shown on that behind-the-app window (instead of the logo) while the
 # app restarts, and its color.
-restart_message       = getattr(settings, 'restartMessage', 'RESTARTING. PLEASE WAIT.')
+restart_message       = getattr(settings, 'restartMessage', 'STARTING. PLEASE WAIT.')
 restart_message_color = getattr(settings, 'restartMessageColor', 'white')
 
 # If no app is configured at all, guard.py just locks the desktop behind
@@ -150,47 +150,84 @@ def check_app_exists():
     kill_pulse()
     return False
 
-def _find_app_window(exe_name):
-    """Return (hwnd, is_topmost) of the app's main window: the top-most
-    (in z-order) visible, unowned top-level window belonging to a
-    process whose image name is exe_name. (0, False) if none is up yet.
-    Pure ctypes - cheap enough to call every second from the Tk loop."""
+def _pids_named(exe_name):
+    """PIDs of every running process whose image name is exe_name. Uses a
+    process snapshot, which (unlike OpenProcess) also works when the app
+    runs elevated / as administrator."""
     from ctypes import wintypes
-    user32, kernel32 = windll.user32, windll.kernel32
-    target = exe_name.lower()
-    found = []
-    pid_names = {}
+    kernel32 = windll.kernel32
 
-    def image_name(pid):
-        if pid not in pid_names:
-            name = ''
-            h = kernel32.OpenProcess(0x1000, False, pid)  # QUERY_LIMITED_INFORMATION
-            if h:
-                buf = ctypes.create_unicode_buffer(1024)
-                size = wintypes.DWORD(len(buf))
-                if kernel32.QueryFullProcessImageNameW(h, 0, buf, byref(size)):
-                    name = os.path.basename(buf.value).lower()
-                kernel32.CloseHandle(h)
-            pid_names[pid] = name
-        return pid_names[pid]
+    class PROCESSENTRY32W(ctypes.Structure):
+        _fields_ = [('dwSize', wintypes.DWORD), ('cntUsage', wintypes.DWORD),
+                    ('th32ProcessID', wintypes.DWORD),
+                    ('th32DefaultHeapID', ctypes.c_size_t),
+                    ('th32ModuleID', wintypes.DWORD), ('cntThreads', wintypes.DWORD),
+                    ('th32ParentProcessID', wintypes.DWORD),
+                    ('pcPriClassBase', ctypes.c_long), ('dwFlags', wintypes.DWORD),
+                    ('szExeFile', ctypes.c_wchar * 260)]
+
+    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    kernel32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
+    kernel32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+
+    target = exe_name.lower()
+    pids = set()
+    snap = kernel32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+    if not snap or snap == wintypes.HANDLE(-1).value:
+        return pids
+    try:
+        entry = PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+        ok = kernel32.Process32FirstW(snap, byref(entry))
+        while ok:
+            if entry.szExeFile.lower() == target:
+                pids.add(entry.th32ProcessID)
+            ok = kernel32.Process32NextW(snap, byref(entry))
+    finally:
+        kernel32.CloseHandle(snap)
+    return pids
+
+
+def _find_app_windows(exe_name):
+    """Visible, non-empty, non-topmost top-level windows of the app's
+    process(es), front to back (EnumWindows order). Owned windows count
+    too: many frameworks (Delphi, AIR, some .NET apps) make the visible
+    main window owned by a hidden one. [] if none are up yet. Pure ctypes -
+    cheap enough to call every second from the Tk loop."""
+    from ctypes import wintypes
+    user32 = windll.user32
+    user32.GetWindowLongW.argtypes = [wintypes.HWND, c_int]
+    user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    pids = _pids_named(exe_name)
+    found = []
+    if not pids:
+        return found
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     def _cb(hwnd, _):
-        if not user32.IsWindowVisible(hwnd) or user32.GetWindow(hwnd, 4):  # GW_OWNER
+        if not user32.IsWindowVisible(hwnd):
             return True
         pid = wintypes.DWORD()
         user32.GetWindowThreadProcessId(hwnd, byref(pid))
-        if image_name(pid.value) == target:
+        if pid.value not in pids:
+            return True
+        if user32.GetWindowLongW(hwnd, -20) & 0x8:  # WS_EX_TOPMOST: above us anyway
+            return True
+        r = wintypes.RECT()
+        user32.GetWindowRect(hwnd, byref(r))
+        if r.right - r.left > 0 and r.bottom - r.top > 0:
             found.append(hwnd)
-            return False  # EnumWindows goes top-down: first match is the front one
         return True
 
-    user32.GetWindowLongW.argtypes = [wintypes.HWND, c_int]
     user32.EnumWindows(_cb, 0)
-    if not found:
-        return 0, False
-    exstyle = user32.GetWindowLongW(found[0], -20)  # GWL_EXSTYLE
-    return found[0], bool(exstyle & 0x8)            # WS_EX_TOPMOST
+    return found
+
+
+def _window_title(hwnd):
+    buf = ctypes.create_unicode_buffer(256)
+    windll.user32.GetWindowTextW(hwnd, buf, 256)
+    return buf.value
 
 
 def show_lock_window(quit_event, behind_app=False, on_ready=None):
@@ -265,16 +302,20 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
 
     def _tuck_under_app():
         try:
-            app_hwnd, app_topmost = _find_app_window(APP_EXE_NAME)
-            if app_hwnd and not app_topmost:
-                # Insert directly below the app's window. (Skipped for a
-                # topmost app: it's above us anyway, and inserting below a
-                # topmost window would make this window topmost too.)
-                windll.user32.SetWindowPos(hwnd, app_hwnd, 0, 0, 0, 0, SWP_FLAGS)
+            windows = _find_app_windows(APP_EXE_NAME)
+            if windows:
+                # Insert directly below the app's *lowest* window, so every
+                # app window (main window, splash, dialogs) stays in front.
+                windll.user32.SetWindowPos(hwnd, windows[-1], 0, 0, 0, 0, SWP_FLAGS)
+            app_hwnd = windows[0] if windows else 0
             if app_hwnd and app_hwnd != state['app_hwnd']:
+                print(f'App window up ("{_window_title(app_hwnd)}", '
+                      f'{len(windows)} window(s)) - restart screen is behind it.')
                 # New app window (first start or a restart): try to give it
                 # focus. Windows may refuse - harmless, it's still in front.
                 windll.user32.SetForegroundWindow(app_hwnd)
+            elif not app_hwnd and state['app_hwnd']:
+                print('App window gone - showing the restart screen.')
             state['app_hwnd'] = app_hwnd
         except Exception as e:
             print(f'Could not place lock window behind the app: {e}')
