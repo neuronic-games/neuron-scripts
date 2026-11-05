@@ -1,4 +1,4 @@
-# guard.py v3.0
+# guard.py v3.1
 # Neuronic 2025
 # Cross-platform: Windows kiosk features active on Windows only.
 
@@ -59,6 +59,18 @@ reset_desktop = getattr(settings, 'resetDesktopColor', RGB(0, 0, 0)) if _IS_WIN 
 # Background color for the no-app lock window (see show_lock_window()) - a
 # Tk color string, e.g. "#403a7a" or a name like "black".
 lock_screen_color = getattr(settings, 'lockScreenColor', '#403a7a')
+
+# Keep the logo lock window up *behind* the running app (Windows only), so
+# that while the app is crashed/restarting you see the logo, not the
+# desktop. Off by default when startObs is on, because the window would
+# also cover OBS projector windows on the exhibit screen.
+lock_behind_app = bool(getattr(settings, 'lockBehindApp',
+                               not getattr(settings, 'startObs', False)))
+
+# Text shown on that behind-the-app window (instead of the logo) while the
+# app restarts, and its color.
+restart_message       = getattr(settings, 'restartMessage', 'RESTARTING. PLEASE WAIT.')
+restart_message_color = getattr(settings, 'restartMessageColor', 'white')
 
 # If no app is configured at all, guard.py just locks the desktop behind
 # the logo (see initApp()) with nothing to launch/monitor - not an error
@@ -139,44 +151,149 @@ def check_app_exists():
     kill_pulse()
     return False
 
-def show_lock_window(quit_event):
-    """Full-screen, borderless, always-on-top window (lock_screen_color
-    background) with the logo centered, blocking any access to the desktop
-    underneath (the
+def _find_app_window(exe_name):
+    """Return (hwnd, is_topmost) of the app's main window: the top-most
+    (in z-order) visible, unowned top-level window belonging to a
+    process whose image name is exe_name. (0, False) if none is up yet.
+    Pure ctypes - cheap enough to call every second from the Tk loop."""
+    from ctypes import wintypes
+    user32, kernel32 = windll.user32, windll.kernel32
+    target = exe_name.lower()
+    found = []
+    pid_names = {}
+
+    def image_name(pid):
+        if pid not in pid_names:
+            name = ''
+            h = kernel32.OpenProcess(0x1000, False, pid)  # QUERY_LIMITED_INFORMATION
+            if h:
+                buf = ctypes.create_unicode_buffer(1024)
+                size = wintypes.DWORD(len(buf))
+                if kernel32.QueryFullProcessImageNameW(h, 0, buf, byref(size)):
+                    name = os.path.basename(buf.value).lower()
+                kernel32.CloseHandle(h)
+            pid_names[pid] = name
+        return pid_names[pid]
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def _cb(hwnd, _):
+        if not user32.IsWindowVisible(hwnd) or user32.GetWindow(hwnd, 4):  # GW_OWNER
+            return True
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, byref(pid))
+        if image_name(pid.value) == target:
+            found.append(hwnd)
+            return False  # EnumWindows goes top-down: first match is the front one
+        return True
+
+    user32.GetWindowLongW.argtypes = [wintypes.HWND, c_int]
+    user32.EnumWindows(_cb, 0)
+    if not found:
+        return 0, False
+    exstyle = user32.GetWindowLongW(found[0], -20)  # GWL_EXSTYLE
+    return found[0], bool(exstyle & 0x8)            # WS_EX_TOPMOST
+
+
+def show_lock_window(quit_event, behind_app=False, on_ready=None):
+    """Full-screen, borderless window (lock_screen_color background) with
+    the logo centered (or, behind_app=True, restart_message), blocking any access to the desktop underneath (the
     wallpaper/desktop-color trick set in initApp() alone doesn't stop
     someone from reaching desktop icons/taskbar in every case - an actual
-    covering window does). Used only when NO_APP_CONFIGURED. Runs its own
-    Tk event loop on the calling thread (must be the main thread) until
-    quit_event is set from elsewhere (e.g. the Ctrl+Shift+S hotkey, which
-    runs on its own thread - only quit_event.set() is called from there,
-    never anything Tk-related, since Tk isn't thread-safe)."""
+    covering window does).
+
+    behind_app=False (no app configured): the window is always on top.
+    behind_app=True: the window is kept directly *below* the app's window,
+    so the app shows normally, and when it crashes/hangs and is restarted
+    the logo is what's left on screen instead of the desktop. The window
+    can't be activated (clicking/touching it doesn't bring it in front of
+    the app) and is re-tucked under the app every second in case anything
+    reordered it.
+
+    on_ready is called once the window is up (used to start the app
+    monitor only then, so the app's first window opens above this one).
+    Runs its own Tk event loop on the calling thread (must be the main
+    thread) until quit_event is set from elsewhere (e.g. the Ctrl+Shift+S
+    hotkey, which runs on its own thread - only quit_event.set() is called
+    from there, never anything Tk-related, since Tk isn't thread-safe)."""
     import tkinter as tk
 
     root = tk.Tk()
     root.overrideredirect(True)
-    root.attributes('-topmost', True)
+    if not behind_app:
+        root.attributes('-topmost', True)
     root.configure(bg=lock_screen_color)
     root.geometry(f'{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0')
 
-    logo_path = os.path.join(_script_dir, 'logo', logo_brand)
-    image = None
-    if os.path.isfile(logo_path):
-        try:
-            image = tk.PhotoImage(file=logo_path)
-        except Exception as e:
-            print(f'Could not load logo image {logo_path}: {e}')
-
-    label = tk.Label(root, bg=lock_screen_color, image=image if image else None)
-    label.image = image  # keep a reference - PhotoImage is GC'd otherwise
+    if behind_app:
+        # Only ever seen while the app is down, so say what's happening.
+        # Negative font size = pixels, scaled to the screen.
+        size = max(24, root.winfo_screenheight() // 12)
+        label = tk.Label(root, text=restart_message, bg=lock_screen_color,
+                         fg=restart_message_color, font=('Segoe UI', -size, 'bold'),
+                         wraplength=int(root.winfo_screenwidth() * 0.9),
+                         justify='center')
+    else:
+        logo_path = os.path.join(_script_dir, 'logo', logo_brand)
+        image = None
+        if os.path.isfile(logo_path):
+            try:
+                image = tk.PhotoImage(file=logo_path)
+            except Exception as e:
+                print(f'Could not load logo image {logo_path}: {e}')
+        label = tk.Label(root, bg=lock_screen_color, image=image if image else None)
+        label.image = image  # keep a reference - PhotoImage is GC'd otherwise
     label.place(relx=0.5, rely=0.5, anchor='center')
+
+    hwnd = 0
+    SWP_FLAGS = 0x0001 | 0x0002 | 0x0010  # NOSIZE | NOMOVE | NOACTIVATE
+    if behind_app:
+        root.update_idletasks()
+        from ctypes import wintypes
+        user32 = windll.user32
+        user32.GetAncestor.restype = wintypes.HWND       # 64-bit-safe handles
+        user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, c_int,
+                                        c_int, c_int, c_int, wintypes.UINT]
+        user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+        user32.GetWindowLongW.argtypes = [wintypes.HWND, c_int]
+        user32.SetWindowLongW.argtypes = [wintypes.HWND, c_int, ctypes.c_long]
+        hwnd = user32.GetAncestor(root.winfo_id(), 2)  # GA_ROOT: the real top-level
+        # WS_EX_NOACTIVATE (clicks don't raise it) | WS_EX_TOOLWINDOW (no Alt+Tab)
+        exstyle = user32.GetWindowLongW(hwnd, -20)
+        user32.SetWindowLongW(hwnd, -20, exstyle | 0x08000000 | 0x00000080)
+        print('Restart-message window is up behind the app.')
+
+    state = {'app_hwnd': 0}
+
+    def _tuck_under_app():
+        try:
+            app_hwnd, app_topmost = _find_app_window(APP_EXE_NAME)
+            if app_hwnd and not app_topmost:
+                # Insert directly below the app's window. (Skipped for a
+                # topmost app: it's above us anyway, and inserting below a
+                # topmost window would make this window topmost too.)
+                windll.user32.SetWindowPos(hwnd, app_hwnd, 0, 0, 0, 0, SWP_FLAGS)
+            if app_hwnd and app_hwnd != state['app_hwnd']:
+                # New app window (first start or a restart): try to give it
+                # focus. Windows may refuse - harmless, it's still in front.
+                windll.user32.SetForegroundWindow(app_hwnd)
+            state['app_hwnd'] = app_hwnd
+        except Exception as e:
+            print(f'Could not place lock window behind the app: {e}')
 
     def _poll_quit():
         if quit_event.is_set():
             root.destroy()
-        else:
-            root.after(200, _poll_quit)
+            return
+        if behind_app:
+            _tuck_under_app()
+        root.after(1000 if behind_app else 200, _poll_quit)
 
-    root.after(200, _poll_quit)
+    def _ready():
+        if on_ready:
+            on_ready()
+        _poll_quit()
+
+    root.after(200, _ready)
     root.mainloop()
 
 # How the logo wallpaper is placed on the desktop. Windows otherwise reuses
@@ -356,12 +473,20 @@ def startAllProcess():
         print(f'Hotkey not available ({e}) — use Ctrl+C to quit.')
         _hotkey_ok = False
 
-    if task_thread:
+    use_lock_window = _IS_WIN and (NO_APP_CONFIGURED or lock_behind_app)
+    if task_thread and not use_lock_window:
         task_thread.start()
 
     try:
-        if NO_APP_CONFIGURED and _IS_WIN:
-            show_lock_window(quit_event)  # blocks (own Tk loop) until quit_event is set
+        if use_lock_window:
+            # Blocks (own Tk loop) until quit_event is set. With an app, the
+            # monitor thread is started once the window is up, so the app's
+            # window opens in front of it.
+            show_lock_window(
+                quit_event,
+                behind_app=not NO_APP_CONFIGURED,
+                on_ready=task_thread.start if task_thread else None,
+            )
         elif _hotkey_ok:
             quit_event.wait()
         else:
@@ -376,7 +501,7 @@ def startAllProcess():
     # can see the app missing right after kill_app() and relaunch it
     # before we exit.
     stop_event.set()
-    if task_thread:
+    if task_thread and task_thread.ident is not None:  # may never have started
         task_thread.join(timeout=5)
     restore_desktop()
     kill_app()
