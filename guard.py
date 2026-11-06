@@ -76,6 +76,12 @@ restart_message_color = getattr(settings, 'restartMessageColor', 'white')
 # case, just a valid "nothing installed on this deployment yet" state.
 NO_APP_CONFIGURED = not APP_EXE_NAME
 
+# Windows: if the app's process is running but none of its windows has
+# been on screen for this many seconds (minimized and won't come back,
+# crashed leaving the process behind...), guard.py kills and restarts it.
+# Also the time a newly started app gets to open its window. 0 = off.
+APP_WINDOW_TIMEOUT = int(getattr(settings, 'appWindowTimeout', 60))
+
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 logging.basicConfig(
     filename=os.path.join(_script_dir, crash_path),
@@ -187,41 +193,6 @@ def _pids_named(exe_name):
     finally:
         kernel32.CloseHandle(snap)
     return pids
-
-
-def _find_app_windows(exe_name):
-    """Visible, non-empty, non-topmost top-level windows of the app's
-    process(es), front to back (EnumWindows order). Owned windows count
-    too: many frameworks (Delphi, AIR, some .NET apps) make the visible
-    main window owned by a hidden one. [] if none are up yet. Pure ctypes -
-    cheap enough to call every second from the Tk loop."""
-    from ctypes import wintypes
-    user32 = windll.user32
-    user32.GetWindowLongW.argtypes = [wintypes.HWND, c_int]
-    user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
-    pids = _pids_named(exe_name)
-    found = []
-    if not pids:
-        return found
-
-    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-    def _cb(hwnd, _):
-        if not user32.IsWindowVisible(hwnd):
-            return True
-        pid = wintypes.DWORD()
-        user32.GetWindowThreadProcessId(hwnd, byref(pid))
-        if pid.value not in pids:
-            return True
-        if user32.GetWindowLongW(hwnd, -20) & 0x8:  # WS_EX_TOPMOST: above us anyway
-            return True
-        r = wintypes.RECT()
-        user32.GetWindowRect(hwnd, byref(r))
-        if r.right - r.left > 0 and r.bottom - r.top > 0:
-            found.append(hwnd)
-        return True
-
-    user32.EnumWindows(_cb, 0)
-    return found
 
 
 def _window_title(hwnd):
@@ -423,7 +394,9 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
                 user32.SetWindowPos(hwnd, prev, 0, 0, 0, 0, SWP_FLAGS)
 
     def _watch_app():
-        windows = _find_app_windows(APP_EXE_NAME)
+        # Only windows actually on screen count - a minimized app leaves
+        # the start screen showing, so keep it animating.
+        windows, _minimized = _app_windows(_pids_named(APP_EXE_NAME))
         app_hwnd = windows[0] if windows else 0
         if app_hwnd and app_hwnd != state['app_hwnd']:
             print(f'App window up ("{_window_title(app_hwnd)}").')
@@ -587,67 +560,151 @@ def initApp():
 
 # ── App monitor ───────────────────────────────────────────────────────────────
 def getTasks(name):
+    """Linux/macOS: the app's process list from pgrep, or '' if it isn't
+    running. (Windows uses _pids_named() / _app_windows() instead.)"""
     try:
-        if _IS_WIN:
-            for line in os.popen('tasklist /v').read().strip().split('\n'):
-                if name in line:
-                    return line
-        else:
-            result = subprocess.run(['pgrep', '-f', name], capture_output=True, text=True)
-            if result.returncode == 0:
-                return result.stdout.strip()
+        result = subprocess.run(['pgrep', '-f', name], capture_output=True, text=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
     except Exception:
         pass
     return ''
 
-def getTaskProcess(stop_event):
-    import traceback
-    try:
-        while not stop_event.is_set():
-            hide_taskbars()  # Windows can bring them back on its own
-            res = getTasks(APP_EXE_NAME)
-            if stop_event.is_set():
-                # Quitting was requested while getTasks() was running -
-                # don't act on a now-stale result.
-                break
-            if not res:
-                if stop_event.is_set():
-                    break
-                is_chrome = 'Chrome' in APP_EXE_PATH or 'chrome' in APP_EXE_PATH
-                if is_chrome:
-                    url = getattr(settings, 'appURL', '')
-                    if _IS_WIN:
-                        subprocess.Popen(
-                            f'start chrome {url} --start-fullscreen --kiosk '
-                            '--disable-pinch --overscroll-history-navigation=0',
-                            shell=True)
-                    elif _IS_MAC:
-                        subprocess.Popen(
-                            ['open', '-a', 'Google Chrome', '--args', url,
-                             '--start-fullscreen', '--kiosk'])
-                    else:
-                        subprocess.Popen(
-                            ['google-chrome', '--kiosk', url])
-                else:
-                    path = os.path.join(APP_EXE_PATH, APP_EXE_NAME)
-                    cmd = [path] + APP_EXE_PARAMS
-                    print(f'Starting: {" ".join(cmd)}')
-                    if _IS_WIN:
-                        info = subprocess.STARTUPINFO()
-                        info.dwFlags    = subprocess.STARTF_USESHOWWINDOW
-                        info.wShowWindow = 3  # SW_MAXIMIZE
-                        subprocess.Popen(cmd, startupinfo=info)
-                    else:
-                        subprocess.Popen(cmd)
-                logging.info(f'{datetime.now()}: App Restarted')
-            elif 'Not Responding' in res:
-                print(f'{APP_EXE_NAME} not responding — restarting...')
+def _app_windows(pids):
+    """(shown, minimized): the app's visible, non-empty top-level windows
+    (always-on-top ones included), split into those actually on screen and
+    those minimized."""
+    from ctypes import wintypes
+    user32 = windll.user32
+    user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    user32.IsIconic.argtypes = [wintypes.HWND]
+    shown, minimized = [], []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def _cb(hwnd, _):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, byref(pid))
+        if pid.value not in pids:
+            return True
+        if user32.IsIconic(hwnd):
+            minimized.append(hwnd)
+            return True
+        r = wintypes.RECT()
+        user32.GetWindowRect(hwnd, byref(r))
+        if r.right - r.left > 0 and r.bottom - r.top > 0:
+            shown.append(hwnd)
+        return True
+
+    user32.EnumWindows(_cb, 0)
+    return shown, minimized
+
+def start_app():
+    is_chrome = 'Chrome' in APP_EXE_PATH or 'chrome' in APP_EXE_PATH
+    if is_chrome:
+        url = getattr(settings, 'appURL', '')
+        print(f'Starting Chrome kiosk: {url}')
+        if _IS_WIN:
+            subprocess.Popen(
+                f'start chrome {url} --start-fullscreen --kiosk '
+                '--disable-pinch --overscroll-history-navigation=0',
+                shell=True)
+        elif _IS_MAC:
+            subprocess.Popen(
+                ['open', '-a', 'Google Chrome', '--args', url,
+                 '--start-fullscreen', '--kiosk'])
+        else:
+            subprocess.Popen(['google-chrome', '--kiosk', url])
+    else:
+        path = os.path.join(APP_EXE_PATH, APP_EXE_NAME)
+        cmd = [path] + APP_EXE_PARAMS
+        print(f'Starting: {" ".join(cmd)}')
+        if _IS_WIN:
+            info = subprocess.STARTUPINFO()
+            info.dwFlags    = subprocess.STARTF_USESHOWWINDOW
+            info.wShowWindow = 3  # SW_MAXIMIZE
+            subprocess.Popen(cmd, startupinfo=info)
+        else:
+            subprocess.Popen(cmd)
+    logging.info(f'{datetime.now()}: App Restarted')
+
+def _check_app_windows(watch):
+    """Windows: the app's process is running - make sure it actually has a
+    window on screen and isn't hung. `watch` carries state between checks.
+    Returns True if the app was killed (so it gets restarted)."""
+    user32 = windll.user32
+    now = time.monotonic()
+    shown, minimized = _app_windows(watch['pids'])
+
+    if shown:
+        watch['no_window_since'] = None
+        # Hung = not handling input for 5s+ (what Task Manager calls "Not
+        # Responding"). Need it on two checks in a row before killing.
+        if any(user32.IsHungAppWindow(h) for h in shown):
+            watch['hung_checks'] += 1
+            if watch['hung_checks'] >= 2:
+                print(f'{APP_EXE_NAME} not responding - restarting...')
                 kill_app()
-            # stop_event.wait() (instead of time.sleep()) returns immediately
-            # once quitting is requested, instead of sleeping up to 25s first.
-            stop_event.wait(25 if not res else 5)
-    except Exception:
-        traceback.print_exc()
+                return True
+        else:
+            watch['hung_checks'] = 0
+        return False
+
+    watch['hung_checks'] = 0
+    if watch['no_window_since'] is None:
+        watch['no_window_since'] = now
+    if minimized:
+        # Full-screen apps (e.g. Unity) often minimize when they lose
+        # focus - bring the window back.
+        print(f'{APP_EXE_NAME} is minimized - restoring it.')
+        for h in minimized:
+            user32.ShowWindow(h, 9)  # SW_RESTORE
+        user32.SetForegroundWindow(minimized[0])
+    if APP_WINDOW_TIMEOUT and now - watch['no_window_since'] >= APP_WINDOW_TIMEOUT:
+        print(f'{APP_EXE_NAME} is running but has had no window on screen for '
+              f'{APP_WINDOW_TIMEOUT}s - restarting it.')
+        kill_app()
+        return True
+    return False
+
+def getTaskProcess(stop_event):
+    """Keep the app running. Each check runs in its own try/except, so an
+    unexpected error is logged and monitoring carries on, instead of the
+    app silently never being restarted again."""
+    import traceback
+    watch = {'pids': set(), 'no_window_since': None, 'hung_checks': 0}
+    while not stop_event.is_set():
+        delay = 5
+        try:
+            hide_taskbars()  # Windows can bring them back on its own
+            if _IS_WIN:
+                # Exact process-name match (not a text search of tasklist
+                # output, which also matched window titles and was slow).
+                watch['pids'] = _pids_named(APP_EXE_NAME)
+                running = bool(watch['pids'])
+            else:
+                running = bool(getTasks(APP_EXE_NAME))
+            if stop_event.is_set():
+                # Quitting was requested during the check - don't act on a
+                # now-stale result.
+                break
+            if not running:
+                start_app()
+                # Give the new process time to open its window before the
+                # no-window timer starts counting.
+                watch['no_window_since'] = time.monotonic()
+                watch['hung_checks'] = 0
+                delay = 25
+            elif _IS_WIN and _check_app_windows(watch):
+                delay = 3  # killed - restart it on the next check
+        except Exception:
+            print(f'{datetime.now()}: error while checking the app (monitoring continues):')
+            traceback.print_exc()
+            delay = 10
+        # stop_event.wait() (instead of time.sleep()) returns immediately
+        # once quitting is requested.
+        stop_event.wait(delay)
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def startAllProcess():

@@ -25,7 +25,7 @@ Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch t
 5. **`pulse.py`**: only if `sheetID` is set. Sends this machine's status to [PulseBoard](#pulseboard-optional) when it starts, when the app comes up, and every 5 hours after that.
 6. **`clean_up_folder.py --loop`**: deletes old files, only if `cleanupFolders` is set.
 7. **`launch_aux.cmd`**: your own extra launch steps, only if that file exists.
-8. **`guard.py`**: starts the exhibit app full-screen, restarts it if it crashes, and locks the desktop.
+8. **`guard.py`**: starts the exhibit app full-screen and locks the desktop. It restarts the app if it crashes or stops responding. It also restores the app if it gets minimized, and restarts it if it's still running with no window on screen.
 
 Press **Ctrl+Shift+S** to quit the app and unlock the desktop.
 
@@ -311,6 +311,7 @@ Leave `sheetID` blank, the default, and PulseBoard is off. `launch.cmd` and `lau
 | `appEXEPath` | The folder that contains the app's `.exe`. | `r'C:\Users\admin\Documents\Neuronic\Skeletal Pop\Skeletal Pop Win'` |
 | `appEXEName` | The `.exe` file that `guard.py` starts and watches. **Leave it blank** to show only a full-screen lock screen with the logo, which is useful before the app is installed. | `'skeletal-pop.exe'` |
 | `appEXEParam` | Extra command-line options for the app, as a list. | `["-fullscreen"]` or `[]` |
+| `appWindowTimeout` | Optional, Windows only. If the app is running but none of its windows has been on screen for this many seconds, `guard.py` restarts it. It's also how long a newly started app gets to open its window. A minimized app is restored first. `0` turns this off. Default: `60`. | `60` |
 
 **Web exhibits (Chrome kiosk):** set `appEXEPath` to Chrome's folder and `appEXEName` to `chrome.exe`. Then put the page to open in `appURL`. Chrome opens full-screen in kiosk mode, and `appEXEParam` is ignored.
 
