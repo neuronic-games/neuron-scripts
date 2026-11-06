@@ -8,12 +8,33 @@ _IS_WIN = sys.platform == 'win32'
 _IS_MAC = sys.platform == 'darwin'
 
 # ── Logging: set up first so import errors are captured ──────────────────────
+# guard.log keeps previous runs (each starts with a ==== line), so a crash
+# isn't lost when guard is relaunched. Once it passes ~1 MB it's moved to
+# guard.log.1 (replacing the older one) and a fresh guard.log is started.
+# Every line starts with the date and time.
 if __name__ == '__main__':
+    import time as _time
     _log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'guard.log')
-    _log_file = open(_log_path, 'w', buffering=1)
+    try:
+        if os.path.getsize(_log_path) > 1_000_000:
+            os.replace(_log_path, _log_path + '.1')
+    except OSError:
+        pass
+    _log_file = open(_log_path, 'a', buffering=1)
     class _Tee:
-        def __init__(self, *streams): self.streams = streams
+        def __init__(self, *streams):
+            self.streams = streams
+            self.at_line_start = True
         def write(self, data):
+            if not data:
+                return
+            parts = []
+            for line in data.splitlines(keepends=True):
+                if self.at_line_start:
+                    parts.append(_time.strftime('%Y-%m-%d %H:%M:%S  '))
+                parts.append(line)
+                self.at_line_start = line.endswith('\n')
+            data = ''.join(parts)
             for s in self.streams:
                 try:
                     s.write(data)
@@ -23,6 +44,7 @@ if __name__ == '__main__':
             for s in self.streams: s.flush()
     sys.stdout = _Tee(sys.__stdout__, _log_file)
     sys.stderr = _Tee(sys.__stderr__, _log_file)
+    print('=' * 60)
     print('guard.py starting...')
     print('Press Ctrl+Shift+S to quit and restore desktop.')
 
@@ -604,7 +626,39 @@ def _app_windows(pids):
     user32.EnumWindows(_cb, 0)
     return shown, minimized
 
+# Windows exit codes that mean the app crashed, with a plain description.
+_CRASH_CODES = {
+    0xC0000005: 'access violation',
+    0xC0000409: 'stack buffer overrun / fail-fast',
+    0xC00000FD: 'stack overflow',
+    0xC0000374: 'heap corruption',
+    0xC000001D: 'illegal instruction',
+    0xC0000094: 'integer divide by zero',
+    0xC0000135: 'missing DLL',
+    0xC0000142: 'DLL failed to initialise',
+    0xC000041D: 'unhandled exception in a callback',
+    0x80000003: 'breakpoint',
+    0xE0434352: 'unhandled .NET exception',
+}
+
+def describe_exit(code):
+    """A plain-English guess at why the app exited, from its exit code."""
+    if code is None:
+        return 'exit code unknown'
+    u = code & 0xFFFFFFFF
+    if u == 0:
+        return 'exit code 0 - it closed normally (the app quit itself, e.g. its own quit key or Alt+F4)'
+    if u == 1:
+        return 'exit code 1 - usually a forced kill (Task Manager / taskkill), or the app reporting an error'
+    if u in _CRASH_CODES:
+        return f'exit code 0x{u:08X} - CRASHED ({_CRASH_CODES[u]})'
+    if u >= 0xC0000000:
+        return f'exit code 0x{u:08X} - CRASHED (Windows error code)'
+    return f'exit code {code}'
+
 def start_app():
+    """Start the app. Returns the Popen handle (so its exit code can be
+    logged later), or None for Chrome, which is started via the shell."""
     is_chrome = 'Chrome' in APP_EXE_PATH or 'chrome' in APP_EXE_PATH
     if is_chrome:
         url = getattr(settings, 'appURL', '')
@@ -628,10 +682,13 @@ def start_app():
             info = subprocess.STARTUPINFO()
             info.dwFlags    = subprocess.STARTF_USESHOWWINDOW
             info.wShowWindow = 3  # SW_MAXIMIZE
-            subprocess.Popen(cmd, startupinfo=info)
+            proc = subprocess.Popen(cmd, startupinfo=info)
         else:
-            subprocess.Popen(cmd)
+            proc = subprocess.Popen(cmd)
+        logging.info(f'{datetime.now()}: App Restarted')
+        return proc
     logging.info(f'{datetime.now()}: App Restarted')
+    return None
 
 def _check_app_windows(watch):
     """Windows: the app's process is running - make sure it actually has a
@@ -649,6 +706,7 @@ def _check_app_windows(watch):
             watch['hung_checks'] += 1
             if watch['hung_checks'] >= 2:
                 print(f'{APP_EXE_NAME} not responding - restarting...')
+                watch['killed_by_guard'] = 'it was not responding'
                 kill_app()
                 return True
         else:
@@ -668,6 +726,7 @@ def _check_app_windows(watch):
     if APP_WINDOW_TIMEOUT and now - watch['no_window_since'] >= APP_WINDOW_TIMEOUT:
         print(f'{APP_EXE_NAME} is running but has had no window on screen for '
               f'{APP_WINDOW_TIMEOUT}s - restarting it.')
+        watch['killed_by_guard'] = 'it had no window on screen'
         kill_app()
         return True
     return False
@@ -677,7 +736,8 @@ def getTaskProcess(stop_event):
     unexpected error is logged and monitoring carries on, instead of the
     app silently never being restarted again."""
     import traceback
-    watch = {'pids': set(), 'no_window_since': None, 'hung_checks': 0}
+    watch = {'pids': set(), 'no_window_since': None, 'hung_checks': 0,
+             'proc': None, 'killed_by_guard': None, 'started': False}
     while not stop_event.is_set():
         delay = 5
         try:
@@ -694,7 +754,20 @@ def getTaskProcess(stop_event):
                 # now-stale result.
                 break
             if not running:
-                start_app()
+                proc = watch['proc']
+                if watch['killed_by_guard']:
+                    print(f'App stopped: guard.py closed it because {watch["killed_by_guard"]}.')
+                elif proc is not None:
+                    try:
+                        code = proc.wait(timeout=2)
+                    except Exception:
+                        code = None
+                    print(f'App stopped on its own: {describe_exit(code)}.')
+                elif watch['started']:
+                    print('App stopped on its own (exit code unknown for Chrome).')
+                watch['killed_by_guard'] = None
+                watch['proc'] = start_app()
+                watch['started'] = True
                 # Give the new process time to open its window before the
                 # no-window timer starts counting.
                 watch['no_window_since'] = time.monotonic()
@@ -703,7 +776,7 @@ def getTaskProcess(stop_event):
             elif _IS_WIN and _check_app_windows(watch):
                 delay = 3  # killed - restart it on the next check
         except Exception:
-            print(f'{datetime.now()}: error while checking the app (monitoring continues):')
+            print('Error while checking the app (monitoring continues):')
             traceback.print_exc()
             delay = 10
         # stop_event.wait() (instead of time.sleep()) returns immediately

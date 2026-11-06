@@ -547,7 +547,7 @@ When new settings are added to `settings.py.sample`, copy the ones you need into
 | Desktop stays locked | Press **Ctrl+Shift+S**. |
 | Exhibit doesn't start after a reboot | Check there's a shortcut in `shell:startup` and that Windows signs in automatically (Install on Windows, step 6). |
 | PowerShell shortcut command fails | Create the shortcuts by hand instead (Install on Windows, step 6). |
-| App keeps crashing | Check `crash.log` in the scripts folder. |
+| App keeps crashing, or stopped and didn't come back | Open `guard.log` in the scripts folder. Every line has a date and time, and each run starts with a `====` line. Earlier runs are kept, and older entries move to `guard.log.1` once the file passes 1 MB. `App stopped on its own:` lines say how the app exited: `CRASHED` with a Windows error code, `exit code 0` for a normal close, or `exit code 1` for a forced kill. `App stopped: guard.py closed it because…` means guard restarted it on purpose. `Ctrl+Shift+S pressed` marks a manual quit. |
 | Desktop logo is off-center | Update the scripts (`git pull`). `guard.py` now centers it. Check `logoWallpaperStyle` isn't set to something odd ([Change the logo](#change-the-logo)). |
 | Lock screen shows no logo, or only part of it | Check `logoBrand` matches a **PNG** file in the `logo` folder. If only part shows, make the image smaller ([Change the logo](#change-the-logo)). |
 | `git pull` fails with *Your local changes would be overwritten* | A file from the repo was changed on this machine, often the logo. Run `git checkout -- logo` to undo, then use a new file name ([Change the logo](#change-the-logo)). |
