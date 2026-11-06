@@ -39,6 +39,32 @@ if _IS_WIN:
     import ctypes
     from ctypes import byref, c_int, windll
     from ctypes.wintypes import RGB
+    from ctypes import wintypes
+
+    # Win32 structures and function signatures, defined once here. (They
+    # used to be defined inside the functions that use them, on every call;
+    # with the start screen and the app monitor calling them from different
+    # threads, one call could swap the signature out from under another:
+    # "expected LP_PROCESSENTRY32W instance instead of pointer to
+    # PROCESSENTRY32W".)
+    class PROCESSENTRY32W(ctypes.Structure):
+        _fields_ = [('dwSize', wintypes.DWORD), ('cntUsage', wintypes.DWORD),
+                    ('th32ProcessID', wintypes.DWORD),
+                    ('th32DefaultHeapID', ctypes.c_size_t),
+                    ('th32ModuleID', wintypes.DWORD), ('cntThreads', wintypes.DWORD),
+                    ('th32ParentProcessID', wintypes.DWORD),
+                    ('pcPriClassBase', ctypes.c_long), ('dwFlags', wintypes.DWORD),
+                    ('szExeFile', ctypes.c_wchar * 260)]
+
+    class MONITORINFO(ctypes.Structure):
+        _fields_ = [('cbSize', wintypes.DWORD), ('rcMonitor', wintypes.RECT),
+                    ('rcWork', wintypes.RECT), ('dwFlags', wintypes.DWORD)]
+
+    windll.kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    windll.kernel32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
+    windll.kernel32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
+    windll.kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    windll.user32.GetMonitorInfoW.argtypes = [wintypes.HMONITOR, ctypes.POINTER(MONITORINFO)]
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 APP_EXE_PATH  = getattr(settings, 'appEXEPath',        '')
@@ -160,23 +186,7 @@ def _pids_named(exe_name):
     """PIDs of every running process whose image name is exe_name. Uses a
     process snapshot, which (unlike OpenProcess) also works when the app
     runs elevated / as administrator."""
-    from ctypes import wintypes
     kernel32 = windll.kernel32
-
-    class PROCESSENTRY32W(ctypes.Structure):
-        _fields_ = [('dwSize', wintypes.DWORD), ('cntUsage', wintypes.DWORD),
-                    ('th32ProcessID', wintypes.DWORD),
-                    ('th32DefaultHeapID', ctypes.c_size_t),
-                    ('th32ModuleID', wintypes.DWORD), ('cntThreads', wintypes.DWORD),
-                    ('th32ParentProcessID', wintypes.DWORD),
-                    ('pcPriClassBase', ctypes.c_long), ('dwFlags', wintypes.DWORD),
-                    ('szExeFile', ctypes.c_wchar * 260)]
-
-    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
-    kernel32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
-    kernel32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
-    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-
     target = exe_name.lower()
     pids = set()
     snap = kernel32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
@@ -219,11 +229,6 @@ def _monitor_rects():
     first. Falls back to just the primary screen if enumeration fails."""
     from ctypes import wintypes
     user32 = windll.user32
-
-    class MONITORINFO(ctypes.Structure):
-        _fields_ = [('cbSize', wintypes.DWORD), ('rcMonitor', wintypes.RECT),
-                    ('rcWork', wintypes.RECT), ('dwFlags', wintypes.DWORD)]
-
     rects = []
     MonitorEnumProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC,
                                          ctypes.POINTER(wintypes.RECT), wintypes.LPARAM)
@@ -238,7 +243,6 @@ def _monitor_rects():
         return True
 
     try:
-        user32.GetMonitorInfoW.argtypes = [wintypes.HMONITOR, ctypes.POINTER(MONITORINFO)]
         user32.EnumDisplayMonitors(None, None, MonitorEnumProc(_cb), 0)
     except Exception as e:
         print(f'Could not list displays ({e}) - covering the main one only.')
@@ -726,7 +730,7 @@ def startAllProcess():
         # thread-safe, so the lock window polls quit_event itself and
         # destroys itself on the main thread; all the actual cleanup below
         # runs exactly once, after whichever wait mechanism returns.
-        print('Ctrl+Shift+S pressed — quitting...')
+        print('Ctrl+Shift+S pressed - quitting...')
         quit_event.set()
 
     try:
@@ -734,7 +738,7 @@ def startAllProcess():
         keyboard.add_hotkey('ctrl+shift+s', on_quit)
         _hotkey_ok = True
     except Exception as e:
-        print(f'Hotkey not available ({e}) — use Ctrl+C to quit.')
+        print(f'Hotkey not available ({e}) - use Ctrl+C to quit.')
         _hotkey_ok = False
 
     use_lock_window = _IS_WIN and (NO_APP_CONFIGURED or lock_behind_app)
