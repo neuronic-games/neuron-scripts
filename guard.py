@@ -44,6 +44,12 @@ if __name__ == '__main__':
             for s in self.streams: s.flush()
     sys.stdout = _Tee(sys.__stdout__, _log_file)
     sys.stderr = _Tee(sys.__stderr__, _log_file)
+    # If Python itself crashes (e.g. an access violation in Windows code
+    # called through ctypes or Tk), the process dies instantly with no
+    # traceback. faulthandler still writes what every thread was doing at
+    # that moment into guard.log ("Windows fatal exception: ...").
+    import faulthandler
+    faulthandler.enable(file=_log_file, all_threads=True)
     print('=' * 60)
     print('guard.py starting...')
     print('Press Ctrl+Shift+S to quit and restore desktop.')
@@ -274,37 +280,48 @@ def _monitor_rects():
     return rects
 
 
-def _lowest_window_above_desktop(exclude):
-    """The bottom-most window that's actually on screen above the desktop:
-    visible, non-empty, not always-on-top (those stay above us anyway, and
-    inserting below one would make our window always-on-top too), and not
-    one of ours. Stops at the desktop itself (Progman / WorkerW). 0 if
-    there are no such windows."""
+def _zorder_around_desktop(ours):
+    """Look at the window stack (front to back) around the desktop.
+    Returns (lowest, ours_behind_desktop):
+      lowest - the bottom-most window on screen *above* the desktop:
+               visible, non-empty, not always-on-top (those stay above us
+               anyway, and inserting below one would make our window
+               always-on-top too), and not one of ours. 0 if none - e.g.
+               after "Show desktop" (Win+D), which brings the desktop
+               itself in front of every other window.
+      ours_behind_desktop - True if any of our windows is behind the
+               desktop (Progman / WorkerW), i.e. not visible."""
     from ctypes import wintypes
     user32 = windll.user32
     user32.GetWindowLongW.argtypes = [wintypes.HWND, c_int]
     user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
     user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, c_int]
-    lowest = [0]
+    ours = set(ours)
+    found = {'lowest': 0, 'desktop': False, 'behind': False}
     cls = ctypes.create_unicode_buffer(64)
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     def _cb(hwnd, _):
-        if hwnd in exclude or not user32.IsWindowVisible(hwnd):
+        if hwnd in ours:
+            if found['desktop']:
+                found['behind'] = True
+            return True
+        if found['desktop'] or not user32.IsWindowVisible(hwnd):
             return True
         user32.GetClassNameW(hwnd, cls, 64)
         if cls.value in ('Progman', 'WorkerW'):
-            return False  # reached the desktop - everything below is behind it
+            found['desktop'] = True   # everything after this is behind it
+            return True
         if user32.GetWindowLongW(hwnd, -20) & 0x8:  # WS_EX_TOPMOST
             return True
         r = wintypes.RECT()
         user32.GetWindowRect(hwnd, byref(r))
         if r.right - r.left > 0 and r.bottom - r.top > 0:
-            lowest[0] = hwnd
+            found['lowest'] = hwnd
         return True
 
     user32.EnumWindows(_cb, 0)
-    return lowest[0]
+    return found['lowest'], found['behind']
 
 
 def show_lock_window(quit_event, behind_app=False, on_ready=None):
@@ -358,7 +375,7 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
                 print(f'Could not load logo image {logo_path}: {e}')
 
     state = {'monitors': [], 'tops': [], 'hwnds': [], 'screens': [],
-             'app_hwnd': 0, 'ticks': 0}
+             'app_hwnd': 0, 'ticks': 0, 'was_behind': False}
     t0 = time.monotonic()
     if behind_app:
         import start_screen
@@ -412,12 +429,22 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
               + (', behind all other windows.' if behind_app else '.'))
 
     def _send_to_bottom():
+        """Keep our windows just above the desktop: below every other
+        window, but never behind the desktop itself."""
         ours = state['hwnds']
-        lowest = _lowest_window_above_desktop(set(ours))
+        lowest, behind = _zorder_around_desktop(ours)
+        if behind and not state['was_behind']:
+            print('Start screen was behind the desktop - moving it back in front of it.')
+        state['was_behind'] = behind
         if lowest:
             user32.SetWindowPos(ours[0], lowest, 0, 0, 0, 0, SWP_FLAGS)
-            for prev, hwnd in zip(ours, ours[1:]):
-                user32.SetWindowPos(hwnd, prev, 0, 0, 0, 0, SWP_FLAGS)
+        else:
+            # No window above the desktop (e.g. "Show desktop" brought the
+            # desktop to the front): go to the front of the normal
+            # (not always-on-top) windows, which puts us above the desktop.
+            user32.SetWindowPos(ours[0], 0, 0, 0, 0, 0, SWP_FLAGS)  # HWND_TOP
+        for prev, hwnd in zip(ours, ours[1:]):
+            user32.SetWindowPos(hwnd, prev, 0, 0, 0, 0, SWP_FLAGS)
 
     def _watch_app():
         # Only windows actually on screen count - a minimized app leaves
