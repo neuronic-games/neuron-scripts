@@ -50,31 +50,31 @@ def open_csv_and_send_mail(file):
         for row in csv_reader:
             to_addr = row[0].strip()
             file_name = row[1].strip()
-
-        file_path = os.path.join(folder, file_name)
-        check = re.search(regex, to_addr)
-        if(check is not None):
-            logging.info("{}: Emailing {} with {}".format(datetime.now(), to_addr, file_name))
-            try:
-                send_email.send_email_with_attachment(to_addr, file_path)
-                success = True
-            except Exception as e:
-                logging.info("{}: {}".format(datetime.now(), e))
-                success = False
-            while success:
+            file_path = os.path.join(folder, file_name)
+            check = re.search(regex, to_addr)
+            if(check is not None):
+                logging.info("{}: Emailing {} with {}".format(datetime.now(), to_addr, file_name))
                 try:
-                    os.remove(file_path)
-                    logging.info("{}: File {} deleted".format(datetime.now(), file_path))
-                    break
-                except:
-                    logging.info("{}: Error deleting {}".format(datetime.now(), file_path))
-                    time.sleep(5) # Wait 5 sec before trying to delete again
-        else:
-            logging.info("{}: Invalid email {}".format(datetime.now(), to_addr))
+                    send_email.send_email_with_attachment(to_addr, file_path)
+                    success = True
+                except Exception as e:
+                    logging.info("{}: {}".format(datetime.now(), e))
+                    success = False
+                while success:
+                    try:
+                        os.remove(file_path)
+                        logging.info("{}: File {} deleted".format(datetime.now(), file_path))
+                        break
+                    except:
+                        logging.info("{}: Error deleting {}".format(datetime.now(), file_path))
+                        time.sleep(5) # Wait 5 sec before trying to delete again
+            else:
+                logging.info("{}: Invalid email {}".format(datetime.now(), to_addr))
 
-        csv_file.close()
-        os.remove(file)
-        logging.info("{}: File {} deleted".format(datetime.now(), file))
+    # The `with` block has closed the CSV; only delete it once every row
+    # has been processed.
+    os.remove(file)
+    logging.info("{}: File {} deleted".format(datetime.now(), file))
 
 try:
     setup()
