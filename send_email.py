@@ -17,14 +17,27 @@ import mail_auth
 import mail_stats
 import mail_log
 
-# Usage: python send_email.py <recipient_email> [attachment_file]
-if len(sys.argv) < 2:
-    print("Usage: python send_email.py <recipient_email> [attachment_file]")
-    sys.exit(1)
-
-receiver_email = sys.argv[1]
-attachment_arg = sys.argv[2] if len(sys.argv) > 2 else None
 msg_html = settings.message
+
+
+def main():
+    # Usage: python send_email.py <recipient_email> [attachment_file]
+    if len(sys.argv) < 2:
+        print("Usage: python send_email.py <recipient_email> [attachment_file]")
+        sys.exit(1)
+
+    receiver_email = sys.argv[1]
+    attachment_arg = sys.argv[2] if len(sys.argv) > 2 else None
+
+    # Try to log in to server and send email
+    try:
+        send_email_with_attachment(receiver_email, attachment_arg)
+
+    except Exception as e:
+        # Print any error messages to stdout
+        print(e)
+    finally:
+        print("Done")
 
 def send_email_with_attachment(to_addr, attachment_file = None):
     msg = MIMEMultipart()
@@ -62,20 +75,15 @@ def send_email_with_attachment(to_addr, attachment_file = None):
 
     print (datetime.now(), ": Mail sent to", to_addr)
 
-# Try to log in to server and send email
-try:
-    send_email_with_attachment(receiver_email, attachment_arg)
 
-except Exception as e:
-    # Print any error messages to stdout
-    print(e)
-finally:
-    print ("Done")
-
-# If a full calendar day's worth of sends hasn't been reported yet, email
-# the daily stats now (no-op unless settings.send_daily_test_mail_to
-# is set and a day boundary has actually passed).
-try:
-    mail_stats.send_daily_report_if_due()
-except Exception as e:
-    print("Daily report error:", e)
+if __name__ == "__main__":
+    try:
+        main()
+    finally:
+        # If a full calendar day's worth of sends hasn't been reported yet,
+        # email the daily stats now (no-op unless settings.send_daily_test_mail_to
+        # is set and a day boundary has actually passed).
+        try:
+            mail_stats.send_daily_report_if_due()
+        except Exception as e:
+            print("Daily report error:", e)
