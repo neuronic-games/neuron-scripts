@@ -6,6 +6,7 @@ import time
 import csv
 import os, fnmatch
 import re
+import sys
 
 from datetime import datetime
 
@@ -16,11 +17,22 @@ import mail_stats
 import mail_log
 import logging
 
-import ctypes
-from ctypes.wintypes import RGB
-from ctypes import byref, c_int, windll, wintypes
-from os import getenv, getcwd
-import keyboard
+# Windows-specific bits (hiding the CMD console) are optional: the rest of
+# the script is cross-platform and runs fine on Linux.
+_WIN32 = sys.platform == "win32"
+if _WIN32:
+    import ctypes
+    from ctypes import windll
+
+try:
+    import keyboard
+except Exception:
+    # Not installed
+    keyboard = None
+if keyboard and hasattr(os, "geteuid") and os.geteuid() != 0:
+    # The keyboard library only works as root on Linux; skip it silently
+    # when running unprivileged (some versions only fail later, on first use).
+    keyboard = None
 
 # Monitors this folder for CSV files containing email address and attachment file
 # name. Each file can contain 1 or more rows of data.
@@ -81,12 +93,13 @@ try:
     print ("Checking periodically in", folder)
 
     ####################################################################################################
-    ## For CMD Console
-    # get the handle to the console bar
-    #if(consoleBarHandler != null):
-    consoleBarHandler = ctypes.windll.kernel32.GetConsoleWindow()
-    # hide the CMD Console
-    windll.user32.ShowWindow(consoleBarHandler, 0)
+    ## For CMD Console (Windows only)
+    consoleBarHandler = None
+    if _WIN32:
+        # get the handle to the console bar
+        consoleBarHandler = ctypes.windll.kernel32.GetConsoleWindow()
+        # hide the CMD Console
+        windll.user32.ShowWindow(consoleBarHandler, 0)
     ####################################################################################################
     
     while True:
@@ -101,9 +114,10 @@ try:
 
         ########################################################################################################
         # checking for Keybaord press
-        if keyboard.is_pressed("left windows") and keyboard.is_pressed("shift") and keyboard.is_pressed("d"):
-            # Close CMD Console
-            windll.user32.DestroyWindow(consoleBarHandler)
+        if keyboard and keyboard.is_pressed("left windows") and keyboard.is_pressed("shift") and keyboard.is_pressed("d"):
+            # Close CMD Console (Windows only)
+            if _WIN32 and consoleBarHandler:
+                windll.user32.DestroyWindow(consoleBarHandler)
             break
         ########################################################################################################
         time.sleep(0)  # Wait 0 sec  #1 sec
