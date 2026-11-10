@@ -84,9 +84,44 @@ if _IS_WIN:
                     ('pcPriClassBase', ctypes.c_long), ('dwFlags', wintypes.DWORD),
                     ('szExeFile', ctypes.c_wchar * 260)]
 
-    class MONITORINFO(ctypes.Structure):
+    class MONITORINFO(ctypes.Structure):          # MONITORINFOEXW
         _fields_ = [('cbSize', wintypes.DWORD), ('rcMonitor', wintypes.RECT),
-                    ('rcWork', wintypes.RECT), ('dwFlags', wintypes.DWORD)]
+                    ('rcWork', wintypes.RECT), ('dwFlags', wintypes.DWORD),
+                    ('szDevice', ctypes.c_wchar * 32)]
+
+    # For display names like "INSIGNIA-TV" (QueryDisplayConfig).
+    class LUID(ctypes.Structure):
+        _fields_ = [('LowPart', wintypes.DWORD), ('HighPart', wintypes.LONG)]
+
+    class DISPLAYCONFIG_PATH_INFO(ctypes.Structure):
+        _fields_ = [('srcAdapter', LUID), ('srcId', ctypes.c_uint32),
+                    ('srcModeIdx', ctypes.c_uint32), ('srcFlags', ctypes.c_uint32),
+                    ('tgtAdapter', LUID), ('tgtId', ctypes.c_uint32),
+                    ('tgtModeIdx', ctypes.c_uint32), ('outputTechnology', ctypes.c_uint32),
+                    ('rotation', ctypes.c_uint32), ('scaling', ctypes.c_uint32),
+                    ('refreshNum', ctypes.c_uint32), ('refreshDen', ctypes.c_uint32),
+                    ('scanLineOrdering', ctypes.c_uint32), ('targetAvailable', wintypes.BOOL),
+                    ('tgtFlags', ctypes.c_uint32), ('flags', ctypes.c_uint32)]
+
+    class DISPLAYCONFIG_MODE_INFO(ctypes.Structure):
+        _fields_ = [('raw', ctypes.c_byte * 64)]
+
+    class DISPLAYCONFIG_DEVICE_INFO_HEADER(ctypes.Structure):
+        _fields_ = [('type', ctypes.c_uint32), ('size', ctypes.c_uint32),
+                    ('adapterId', LUID), ('id', ctypes.c_uint32)]
+
+    class DISPLAYCONFIG_SOURCE_DEVICE_NAME(ctypes.Structure):
+        _fields_ = [('header', DISPLAYCONFIG_DEVICE_INFO_HEADER),
+                    ('viewGdiDeviceName', ctypes.c_wchar * 32)]
+
+    class DISPLAYCONFIG_TARGET_DEVICE_NAME(ctypes.Structure):
+        _fields_ = [('header', DISPLAYCONFIG_DEVICE_INFO_HEADER),
+                    ('flags', ctypes.c_uint32), ('outputTechnology', ctypes.c_uint32),
+                    ('edidManufactureId', ctypes.c_uint16), ('edidProductCodeId', ctypes.c_uint16),
+                    ('connectorInstance', ctypes.c_uint32),
+                    ('monitorFriendlyDeviceName', ctypes.c_wchar * 64),
+                    ('monitorDevicePath', ctypes.c_wchar * 128)]
+
 
     windll.kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
     windll.kernel32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
@@ -253,8 +288,9 @@ def _make_dpi_aware():
 
 
 def _monitor_rects():
-    """[(x, y, width, height, is_primary), ...] for every display, primary
-    first. Falls back to just the primary screen if enumeration fails."""
+    """[(x, y, width, height, is_primary, device), ...] for every display,
+    primary first (device is e.g. '\\\\.\\DISPLAY2'). Falls back to just the
+    primary screen if enumeration fails."""
     from ctypes import wintypes
     user32 = windll.user32
     rects = []
@@ -267,7 +303,8 @@ def _monitor_rects():
         if user32.GetMonitorInfoW(hmon, byref(info)):
             r = info.rcMonitor
             rects.append((r.left, r.top, r.right - r.left, r.bottom - r.top,
-                          bool(info.dwFlags & 1)))  # MONITORINFOF_PRIMARY
+                          bool(info.dwFlags & 1),  # MONITORINFOF_PRIMARY
+                          info.szDevice))
         return True
 
     try:
@@ -275,9 +312,56 @@ def _monitor_rects():
     except Exception as e:
         print(f'Could not list displays ({e}) - covering the main one only.')
     if not rects:
-        rects = [(0, 0, user32.GetSystemMetrics(0), user32.GetSystemMetrics(1), True)]
+        rects = [(0, 0, user32.GetSystemMetrics(0), user32.GetSystemMetrics(1), True, '')]
     rects.sort(key=lambda r: not r[4])
     return rects
+
+
+def _display_names():
+    """{'\\\\.\\DISPLAY2': 'INSIGNIA-TV', ...} - the monitors' own names, as
+    Windows Settings (and OBS) show them. {} if they can't be read."""
+    names = {}
+    try:
+        user32 = windll.user32
+        n_paths, n_modes = ctypes.c_uint32(), ctypes.c_uint32()
+        if user32.GetDisplayConfigBufferSizes(2, byref(n_paths), byref(n_modes)):  # QDC_ONLY_ACTIVE_PATHS
+            return names
+        paths = (DISPLAYCONFIG_PATH_INFO * n_paths.value)()
+        modes = (DISPLAYCONFIG_MODE_INFO * n_modes.value)()
+        if user32.QueryDisplayConfig(2, byref(n_paths), paths, byref(n_modes), modes, None):
+            return names
+        for path in paths[:n_paths.value]:
+            src = DISPLAYCONFIG_SOURCE_DEVICE_NAME()
+            src.header.type, src.header.size = 1, ctypes.sizeof(src)  # GET_SOURCE_NAME
+            src.header.adapterId, src.header.id = path.srcAdapter, path.srcId
+            tgt = DISPLAYCONFIG_TARGET_DEVICE_NAME()
+            tgt.header.type, tgt.header.size = 2, ctypes.sizeof(tgt)  # GET_TARGET_NAME
+            tgt.header.adapterId, tgt.header.id = path.tgtAdapter, path.tgtId
+            if (user32.DisplayConfigGetDeviceInfo(byref(src)) == 0 and
+                    user32.DisplayConfigGetDeviceInfo(byref(tgt)) == 0):
+                names[src.viewGdiDeviceName] = tgt.monitorFriendlyDeviceName or '(unnamed)'
+    except Exception:
+        pass
+    return names
+
+
+def _describe_display(rect, names):
+    x, y, w, h, primary, device = rect
+    label = names.get(device) or device.replace('\\\\.\\', '') or 'display'
+    short = device.replace('\\\\.\\', '')
+    if short and short != label:
+        label += f' ({short})'
+    return f'{label} {w}x{h} at {x},{y}' + (', main display' if primary else '')
+
+
+def log_display_changes(old, new):
+    names = _display_names()
+    for rect in old:
+        if rect not in new:
+            print(f'  Display gone:  {_describe_display(rect, names)}')
+    for rect in new:
+        if rect not in old:
+            print(f'  Display added: {_describe_display(rect, names)}')
 
 
 def _zorder_around_desktop(ours):
@@ -391,12 +475,14 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
                 screen.draw(t)
         root.after(int(1000 / start_screen.FPS) if not state['app_hwnd'] else 500, _animate)
 
+    first_build = [True]
+
     def _build():
         for top in state['tops']:
             top.destroy()
         state['monitors'] = _monitor_rects()
         state['tops'], state['hwnds'], state['screens'] = [], [], []
-        for x, y, w, h, primary in state['monitors']:
+        for x, y, w, h, primary, _device in state['monitors']:
             top = tk.Toplevel(root)
             top.overrideredirect(True)
             top.configure(bg=lock_screen_color)
@@ -427,6 +513,11 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
             state['hwnds'].append(hwnd)
         print(f'Lock screen covering {len(state["monitors"])} display(s)'
               + (', behind all other windows.' if behind_app else '.'))
+        if first_build[0]:
+            first_build[0] = False
+            names = _display_names()
+            for rect in state['monitors']:
+                print(f'  Display: {_describe_display(rect, names)}')
 
     def _send_to_bottom():
         """Keep our windows just above the desktop: below every other
@@ -467,9 +558,12 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
         state['ticks'] += 1
         try:
             hide_taskbars()
-            if state['ticks'] % 5 == 0 and _monitor_rects() != state['monitors']:
-                print('Displays changed - rebuilding the lock screen.')
-                _build()
+            if state['ticks'] % 5 == 0:
+                current = _monitor_rects()
+                if current != state['monitors']:
+                    print('Displays changed - rebuilding the lock screen.')
+                    log_display_changes(state['monitors'], current)
+                    _build()
             if behind_app:
                 _send_to_bottom()
                 _watch_app()
@@ -594,8 +688,28 @@ def show_taskbars():
         windll.user32.ShowWindow(bar, 5)  # SW_SHOW
 
 # ── Init ──────────────────────────────────────────────────────────────────────
+def log_boot_time():
+    """Log when the computer last started, so a reboot is easy to tell
+    apart from Launch simply being run again."""
+    try:
+        if _IS_WIN:
+            windll.kernel32.GetTickCount64.restype = ctypes.c_uint64
+            uptime = windll.kernel32.GetTickCount64() / 1000
+        else:
+            with open('/proc/uptime') as f:
+                uptime = float(f.read().split()[0])
+    except Exception as e:
+        print(f'Could not read when the computer started: {e}')
+        return
+    booted = datetime.fromtimestamp(time.time() - uptime).strftime('%Y-%m-%d %H:%M')
+    mins = int(uptime // 60)
+    ago = f'{mins} min' if mins < 120 else f'{mins // 60} h {mins % 60} min'
+    note = ' - this start follows a reboot' if uptime < 10 * 60 else ''
+    print(f'Computer started {booted} ({ago} ago){note}.')
+
 def initApp():
     initApp.isStarted = False
+    log_boot_time()
     kill_app()
     if _IS_WIN:
         initApp.consoleBarHandler = ctypes.windll.kernel32.GetConsoleWindow()
