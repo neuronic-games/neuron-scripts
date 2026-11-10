@@ -7,6 +7,7 @@ import csv
 import os, fnmatch
 import re
 import sys
+import traceback
 
 from datetime import datetime
 
@@ -114,11 +115,18 @@ try:
 
         ########################################################################################################
         # checking for Keybaord press
-        if keyboard and keyboard.is_pressed("left windows") and keyboard.is_pressed("shift") and keyboard.is_pressed("d"):
-            # Close CMD Console (Windows only)
-            if _WIN32 and consoleBarHandler:
-                windll.user32.DestroyWindow(consoleBarHandler)
-            break
+        if keyboard:
+            try:
+                if keyboard.is_pressed("left windows") and keyboard.is_pressed("shift") and keyboard.is_pressed("d"):
+                    # Close CMD Console (Windows only)
+                    if _WIN32 and consoleBarHandler:
+                        windll.user32.DestroyWindow(consoleBarHandler)
+                    break
+            except Exception as e:
+                # The hotkey must never kill the monitor loop; disable it
+                # instead (e.g. not root on Linux, no event capture).
+                logging.info("{}: Keyboard hotkey disabled: {}".format(datetime.now(), e))
+                keyboard = None
         ########################################################################################################
         time.sleep(0)  # Wait 0 sec  #1 sec
 
@@ -127,7 +135,9 @@ except KeyboardInterrupt:
 
 except Exception as e:
     # Print any error messages to stdout
-    print(e)
+    logging.exception("{}: {}".format(datetime.now(), e))
+    print("Unexpected error (see send_mail.log for details):")
+    traceback.print_exc()
 
 finally:
     print ("Total execution time (sec): ", time_since(start_time))
