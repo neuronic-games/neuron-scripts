@@ -171,6 +171,16 @@ NO_APP_CONFIGURED = not APP_EXE_NAME
 # Also the time a newly started app gets to open its window. 0 = off.
 APP_WINDOW_TIMEOUT = int(getattr(settings, 'appWindowTimeout', 60))
 
+# Windows: if set, the app counts as "ready" once one of its windows has a
+# title containing this text (e.g. "LICM TV Studio Record"). If it isn't
+# ready APP_READY_TIMEOUT seconds after starting - stuck on its loading
+# window, e.g. because OBS's virtual camera didn't start - guard.py
+# restarts OBS (if startObs) and the app. Gives up after 3 tries in a row,
+# so a real fault doesn't make it restart forever. Blank = off.
+APP_READY_TITLE   = str(getattr(settings, 'appReadyWindowTitle', '') or '').strip()
+APP_READY_TIMEOUT = int(getattr(settings, 'appReadyTimeout', 180))
+APP_READY_TRIES   = 3
+
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 logging.basicConfig(
     filename=os.path.join(_script_dir, crash_path),
@@ -872,13 +882,57 @@ def _check_app_windows(watch):
         return True
     return False
 
+def _restart_obs():
+    """Run start_obs.cmd (closes the app and OBS, restarts OBS with its
+    virtual camera, reopens projectors) and log the end of its output."""
+    path = os.path.join(_script_dir, 'start_obs.cmd')
+    try:
+        result = subprocess.run(['cmd', '/c', path], capture_output=True, text=True,
+                                errors='replace', timeout=300, cwd=_script_dir)
+        lines = [l for l in (result.stdout + result.stderr).splitlines() if l.strip()]
+        for line in lines[-8:]:
+            print(f'  start_obs: {line.strip()}')
+    except Exception as e:
+        print(f'Could not restart OBS: {e}')
+
+def _check_app_ready(watch):
+    """Windows: once the app is running, watch for its main window
+    (APP_READY_TITLE). Returns True if the app was killed to restart it."""
+    if not APP_READY_TITLE or watch['ready']:
+        return False
+    shown, _minimized = _app_windows(watch['pids'])
+    for h in shown + _minimized:
+        title = _window_title(h)
+        if APP_READY_TITLE.lower() in title.lower():
+            watch['ready'] = True
+            watch['stuck_tries'] = 0
+            secs = int(time.monotonic() - watch['started_at'])
+            print(f'App ready ("{title}") {secs}s after starting.')
+            return False
+    if time.monotonic() - watch['started_at'] < APP_READY_TIMEOUT:
+        return False
+    if watch['stuck_tries'] >= APP_READY_TRIES:
+        print(f'App still not ready after {APP_READY_TRIES} restarts - leaving it running. '
+              'Check OBS (virtual camera) and the camera.')
+        watch['ready'] = True  # stop retrying until the app is next restarted
+        return False
+    watch['stuck_tries'] += 1
+    print(f'App not ready after {APP_READY_TIMEOUT}s (no "{APP_READY_TITLE}" window) - '
+          f'restarting OBS and the app (try {watch["stuck_tries"]} of {APP_READY_TRIES}).')
+    watch['killed_by_guard'] = 'it was stuck loading'
+    kill_app()
+    if getattr(settings, 'startObs', False):
+        _restart_obs()
+    return True
+
 def getTaskProcess(stop_event):
     """Keep the app running. Each check runs in its own try/except, so an
     unexpected error is logged and monitoring carries on, instead of the
     app silently never being restarted again."""
     import traceback
     watch = {'pids': set(), 'no_window_since': None, 'hung_checks': 0,
-             'proc': None, 'killed_by_guard': None, 'started': False}
+             'proc': None, 'killed_by_guard': None, 'started': False,
+             'started_at': 0.0, 'ready': False, 'stuck_tries': 0}
     while not stop_event.is_set():
         delay = 5
         try:
@@ -909,6 +963,8 @@ def getTaskProcess(stop_event):
                 watch['killed_by_guard'] = None
                 watch['proc'] = start_app()
                 watch['started'] = True
+                watch['started_at'] = time.monotonic()
+                watch['ready'] = False
                 # Give the new process time to open its window before the
                 # no-window timer starts counting.
                 watch['no_window_since'] = time.monotonic()
@@ -916,6 +972,8 @@ def getTaskProcess(stop_event):
                 delay = 25
             elif _IS_WIN and _check_app_windows(watch):
                 delay = 3  # killed - restart it on the next check
+            elif _IS_WIN and _check_app_ready(watch):
+                delay = 3  # stuck loading - killed, restart it on the next check
         except Exception:
             print('Error while checking the app (monitoring continues):')
             traceback.print_exc()
@@ -989,8 +1047,23 @@ def startAllProcess():
     kill_app()
     kill_pulse()
 
+def _already_running():
+    """True if another guard.py is already running (e.g. Launch was run
+    twice at once). Uses a named mutex, which Windows frees automatically
+    when the process holding it exits, however it exits."""
+    if not _IS_WIN:
+        return False
+    k32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    k32.CreateMutexW.restype = wintypes.HANDLE
+    k32.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
+    _already_running.handle = k32.CreateMutexW(None, False, 'Local\\NeuronicGuardPy')
+    return ctypes.get_last_error() == 183  # ERROR_ALREADY_EXISTS
+
 if __name__ == '__main__':
     import traceback
+    if _already_running():
+        print('Another guard.py is already running - this one is exiting.')
+        sys.exit(0)
     try:
         if check_app_exists():
             initApp()

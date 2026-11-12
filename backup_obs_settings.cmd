@@ -51,7 +51,9 @@ echo to:
 echo   %DEST%
 echo.
 
-robocopy "%SRC%" "%DEST%" /MIR /R:2 /W:2 /NFL /NDL /NJH
+::  /XD logs crashes: leave OBS's own logs alone, so a restore at launch
+::  doesn't delete the logs of earlier runs (needed for troubleshooting).
+robocopy "%SRC%" "%DEST%" /MIR /XD logs crashes /R:2 /W:2 /NFL /NDL /NJH
 
 :: robocopy exit codes 0-7 mean success/informational; 8+ means failure
 if %errorlevel% GEQ 8 (

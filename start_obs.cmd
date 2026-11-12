@@ -3,6 +3,13 @@
 
 @echo off
 
+:: Close the exhibit app first. While it's running it keeps the previous
+:: OBS's virtual camera open, and the new OBS then fails to start its own
+:: ("Failed to start virtual camera" - confirmed in the OBS log: it
+:: started fine seconds after the old app was closed). guard.py starts the
+:: app again afterwards.
+python "%~dp0close_app.py"
+
 set "OBS_BACKUP=%USERPROFILE%\Documents\Neuronic\settings-backup\obs-studio"
 set "OBS_SETTINGS=%appdata%\obs-studio"
 

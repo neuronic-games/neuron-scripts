@@ -34,6 +34,27 @@ IF "%ALT_SETTINGS%"=="" (
 )
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Only one Launch at a time. Two running together (e.g. a double-click)
+:: each restart OBS, kill each other's freshly started OBS, and start two
+:: guards - which breaks OBS's virtual camera. A lock folder marks a Launch
+:: in progress; one older than 5 minutes is left over from a Launch that
+:: was closed partway, and is ignored.
+SET "LAUNCH_LOCK=%TEMP%\neuron-launch.lock"
+mkdir "%LAUNCH_LOCK%" 2>nul
+if errorlevel 1 (
+    powershell -NoProfile -Command "if (((Get-Date) - (Get-Item -LiteralPath $env:LAUNCH_LOCK).CreationTime).TotalMinutes -lt 5) { exit 1 } else { exit 0 }"
+    if errorlevel 1 (
+        echo.
+        echo Launch is already running - not starting a second one.
+        timeout /t 5 /nobreak >nul
+        exit /b
+    )
+    echo Found a lock left over from an earlier Launch - continuing.
+    rmdir "%LAUNCH_LOCK%" 2>nul
+    mkdir "%LAUNCH_LOCK%" 2>nul
+)
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo.
 echo Stopping any previously running python.exe processes...
 taskkill /IM python.exe /F
@@ -113,6 +134,8 @@ if exist "%~dp0launch_aux.cmd" (
 echo.
 echo Starting guard (app monitor / kiosk lockdown)...
 start /min cmd /c py -3 "%USERPROFILE%\Documents\Neuronic\neuron-scripts\guard.py"
+
+rmdir "%LAUNCH_LOCK%" 2>nul
 
 echo.
 echo ============================================================

@@ -18,10 +18,10 @@ Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch t
 
 `launch.cmd` starts everything, in this order:
 
-1. Stops any Python scripts that are already running.
+1. Stops any Python scripts that are already running. If another Launch is still running (e.g. a double-click), the second one exits instead.
 2. Runs `git pull` to get the latest scripts.
 3. **`archive_update.py`**: if `checkForUpdate` is on, downloads and unzips a newer version of the app.
-4. **`start_obs.cmd`**: starts OBS Studio, only if `startObs` is on.
+4. **`start_obs.cmd`**: starts OBS Studio, only if `startObs` is on. It closes the app first, because a running app keeps the old OBS's virtual camera open and the new OBS then can't start its own ("Failed to start virtual camera").
 5. **`pulse.py`**: only if `sheetID` is set. Sends this machine's status to [PulseBoard](#pulseboard-optional) when it starts, when the app comes up, and every 5 hours after that.
 6. **`clean_up_folder.py --loop`**: deletes old files, only if `cleanupFolders` is set.
 7. **`launch_aux.cmd`**: your own extra launch steps, only if that file exists.
@@ -311,6 +311,8 @@ Leave `sheetID` blank, the default, and PulseBoard is off. `launch.cmd` and `lau
 | `appEXEPath` | The folder that contains the app's `.exe`. | `r'C:\Users\admin\Documents\Neuronic\Skeletal Pop\Skeletal Pop Win'` |
 | `appEXEName` | The `.exe` file that `guard.py` starts and watches. **Leave it blank** to show only a full-screen lock screen with the logo, which is useful before the app is installed. | `'skeletal-pop.exe'` |
 | `appEXEParam` | Extra command-line options for the app, as a list. | `["-fullscreen"]` or `[]` |
+| `appReadyWindowTitle` | Optional, Windows only. Text in the title of the app's main window, e.g. `"LICM TV Studio Record"`. If no window with that title appears within `appReadyTimeout` seconds of the app starting (it's stuck on its loading window), `guard.py` restarts OBS (if `startObs` is on) and the app, up to 3 times in a row. Blank = off. | `""` |
+| `appReadyTimeout` | Optional. Seconds the app gets to show its `appReadyWindowTitle` window. Default: `180`. | `180` |
 | `appWindowTimeout` | Optional, Windows only. If the app is running but none of its windows has been on screen for this many seconds, `guard.py` restarts it. It's also how long a newly started app gets to open its window. A minimized app is restored first. `0` turns this off. Default: `60`. | `60` |
 
 **Web exhibits (Chrome kiosk):** set `appEXEPath` to Chrome's folder and `appEXEName` to `chrome.exe`. Then put the page to open in `appURL`. Chrome opens full-screen in kiosk mode, and `appEXEParam` is ignored.
@@ -548,6 +550,7 @@ When new settings are added to `settings.py.sample`, copy the ones you need into
 | Exhibit doesn't start after a reboot | Check there's a shortcut in `shell:startup` and that Windows signs in automatically (Install on Windows, step 6). |
 | PowerShell shortcut command fails | Create the shortcuts by hand instead (Install on Windows, step 6). |
 | App keeps crashing, or stopped and didn't come back | Open `guard.log` in the scripts folder. Every line has a date and time, and each run starts with a `====` line. Earlier runs are kept, and older entries move to `guard.log.1` once the file passes 1 MB. `App stopped on its own:` lines say how the app exited: `CRASHED` with a Windows error code, `exit code 0` for a normal close, or `exit code 1` for a forced kill. `App stopped: guard.py closed it because…` means guard restarted it on purpose. `Ctrl+Shift+S pressed` marks a manual quit. |
+| "Failed to start virtual camera" from OBS, or the app stuck loading | Update the scripts: `start_obs.cmd` now closes the app before restarting OBS, which fixes the usual cause. If it still happens, send the OBS log of that run from `%APPDATA%\obs-studio\logs` (one file per OBS start, named by date and time). OBS logs are now kept across launches. |
 | Desktop logo is off-center | Update the scripts (`git pull`). `guard.py` now centers it. Check `logoWallpaperStyle` isn't set to something odd ([Change the logo](#change-the-logo)). |
 | Lock screen shows no logo, or only part of it | Check `logoBrand` matches a **PNG** file in the `logo` folder. If only part shows, make the image smaller ([Change the logo](#change-the-logo)). |
 | `git pull` fails with *Your local changes would be overwritten* | A file from the repo was changed on this machine, often the logo. Run `git checkout -- logo` to undo, then use a new file name ([Change the logo](#change-the-logo)). |
