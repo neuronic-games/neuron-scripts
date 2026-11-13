@@ -376,46 +376,51 @@ def log_display_changes(old, new):
 
 def _zorder_around_desktop(ours):
     """Look at the window stack (front to back) around the desktop.
-    Returns (lowest, ours_behind_desktop):
-      lowest - the bottom-most window on screen *above* the desktop:
-               visible, non-empty, not always-on-top (those stay above us
-               anyway, and inserting below one would make our window
-               always-on-top too), and not one of ours. 0 if none - e.g.
-               after "Show desktop" (Win+D), which brings the desktop
-               itself in front of every other window.
-      ours_behind_desktop - True if any of our windows is behind the
-               desktop (Progman / WorkerW), i.e. not visible."""
+    "Real" windows here are visible, non-empty, not minimized, not
+    always-on-top (those stay above us anyway, and inserting below one
+    would make our window always-on-top too), not the desktop itself
+    (Progman / WorkerW) and not ours. Returns a dict:
+      lowest_above - bottom-most real window in front of the desktop (0 if none)
+      hidden       - real windows *behind* the desktop, front to back:
+                     something brought the desktop in front of them
+      desktops     - the desktop's visible windows
+      ours_behind  - True if any of our windows is behind the desktop"""
     from ctypes import wintypes
     user32 = windll.user32
     user32.GetWindowLongW.argtypes = [wintypes.HWND, c_int]
     user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
     user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, c_int]
+    user32.IsIconic.argtypes = [wintypes.HWND]
     ours = set(ours)
-    found = {'lowest': 0, 'desktop': False, 'behind': False}
+    found = {'lowest_above': 0, 'hidden': [], 'desktops': [], 'ours_behind': False}
     cls = ctypes.create_unicode_buffer(64)
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     def _cb(hwnd, _):
         if hwnd in ours:
-            if found['desktop']:
-                found['behind'] = True
+            if found['desktops']:
+                found['ours_behind'] = True
             return True
-        if found['desktop'] or not user32.IsWindowVisible(hwnd):
+        if not user32.IsWindowVisible(hwnd):
             return True
         user32.GetClassNameW(hwnd, cls, 64)
         if cls.value in ('Progman', 'WorkerW'):
-            found['desktop'] = True   # everything after this is behind it
+            found['desktops'].append(hwnd)
             return True
-        if user32.GetWindowLongW(hwnd, -20) & 0x8:  # WS_EX_TOPMOST
-            return True
+        if user32.GetWindowLongW(hwnd, -20) & 0x8 or user32.IsIconic(hwnd):
+            return True   # always-on-top, or minimized
         r = wintypes.RECT()
         user32.GetWindowRect(hwnd, byref(r))
-        if r.right - r.left > 0 and r.bottom - r.top > 0:
-            found['lowest'] = hwnd
+        if r.right - r.left <= 0 or r.bottom - r.top <= 0:
+            return True
+        if found['desktops']:
+            found['hidden'].append(hwnd)
+        else:
+            found['lowest_above'] = hwnd
         return True
 
     user32.EnumWindows(_cb, 0)
-    return found['lowest'], found['behind']
+    return found
 
 
 def show_lock_window(quit_event, behind_app=False, on_ready=None):
@@ -533,17 +538,30 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
         """Keep our windows just above the desktop: below every other
         window, but never behind the desktop itself."""
         ours = state['hwnds']
-        lowest, behind = _zorder_around_desktop(ours)
-        if behind and not state['was_behind']:
-            print('Start screen was behind the desktop - moving it back in front of it.')
-        state['was_behind'] = behind
-        if lowest:
-            user32.SetWindowPos(ours[0], lowest, 0, 0, 0, 0, SWP_FLAGS)
+        z = _zorder_around_desktop(ours)
+        if z['hidden']:
+            # Something (e.g. "Show desktop", Win+D) brought the desktop in
+            # front of open windows - the app, OBS projectors... Put the
+            # desktop back at the bottom, so they're visible again, and go
+            # just below the lowest of them.
+            if not state['was_behind']:
+                print(f'The desktop came in front of {len(z["hidden"])} window(s) '
+                      f'(e.g. "{_window_title(z["hidden"][0])}") - sending it back to the bottom.')
+            state['was_behind'] = True
+            for desk in z['desktops']:
+                user32.SetWindowPos(desk, 1, 0, 0, 0, 0, SWP_FLAGS)  # HWND_BOTTOM
+            user32.SetWindowPos(ours[0], z['hidden'][-1], 0, 0, 0, 0, SWP_FLAGS)
         else:
-            # No window above the desktop (e.g. "Show desktop" brought the
-            # desktop to the front): go to the front of the normal
-            # (not always-on-top) windows, which puts us above the desktop.
-            user32.SetWindowPos(ours[0], 0, 0, 0, 0, 0, SWP_FLAGS)  # HWND_TOP
+            if z['ours_behind'] and not state['was_behind']:
+                print('Start screen was behind the desktop - moving it back in front of it.')
+            state['was_behind'] = z['ours_behind']
+            if z['lowest_above']:
+                user32.SetWindowPos(ours[0], z['lowest_above'], 0, 0, 0, 0, SWP_FLAGS)
+            else:
+                # No open window anywhere (all minimized, e.g. after
+                # "Show desktop"): go to the front of the normal windows,
+                # which puts us above the desktop.
+                user32.SetWindowPos(ours[0], 0, 0, 0, 0, 0, SWP_FLAGS)  # HWND_TOP
         for prev, hwnd in zip(ours, ours[1:]):
             user32.SetWindowPos(hwnd, prev, 0, 0, 0, 0, SWP_FLAGS)
 
