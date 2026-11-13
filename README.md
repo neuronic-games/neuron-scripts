@@ -385,6 +385,21 @@ Linux doesn't show the logo.
 | `cameraHubCusbcPath` | The full path to `CUSBC.exe` if Windows can't find it on its own. |
 | `cameraHubPowerOffSec` | How many seconds the camera stays off during a reset. |
 
+#### Projectors
+
+At each Launch, `start_obs.cmd` restores OBS's settings from the backup in `Documents\Neuronic\settings-backup`, then `open_projector.py` opens the projectors listed in that backup. OBS keeps this list in its scene collection, but only writes it when **Save projectors on exit** is on. Launch turns that setting off every time, because OBS's own restore opens projectors blank.
+
+**To change which projectors open, and on which monitors:**
+
+1. Quit the exhibit with Ctrl+Shift+S. Open OBS from its own shortcut, not Launch.
+2. In OBS, go to **Settings → General → Projectors** and turn on **Save projectors on exit**.
+3. Open the projectors you want and put each one on its monitor.
+4. Close OBS normally, using the window's X, so it writes the list.
+5. Run `backup_obs_settings.cmd`. It should say `Projector list updated from OBS`, followed by your projectors.
+6. Run Launch.
+
+A backup made at any other time keeps the projector list that's already in the backup, so you can back up other OBS changes safely. To see the saved list, run `py -3 obs_projectors.py`.
+
 ### Video (`send_video.py`)
 
 | Setting | What it does |

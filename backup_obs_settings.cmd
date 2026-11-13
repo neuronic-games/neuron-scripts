@@ -51,6 +51,11 @@ echo to:
 echo   %DEST%
 echo.
 
+:: Remember the projector list already in the backup: OBS empties its own
+:: copy at every launch (start_obs.cmd turns "Save projectors on exit"
+:: off), so a plain copy would replace the good list with an empty one.
+python "%~dp0obs_projectors.py" keep
+
 ::  /XD logs crashes: leave OBS's own logs alone, so a restore at launch
 ::  doesn't delete the logs of earlier runs (needed for troubleshooting).
 robocopy "%SRC%" "%DEST%" /MIR /XD logs crashes /R:2 /W:2 /NFL /NDL /NJH
@@ -62,6 +67,9 @@ if %errorlevel% GEQ 8 (
     pause
     exit /b 1
 )
+
+:: Put back any projector list the copy emptied (see obs_projectors.py).
+python "%~dp0obs_projectors.py" restore
 
 echo.
 echo Backup complete.
