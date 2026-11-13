@@ -314,6 +314,7 @@ def _build_projector_specs(client: obs.ReqClient) -> list:
     for entry in _load_saved_projectors(client):
         spec = _spec_from_saved_entry(entry)
         if spec:
+            spec["monitor"] = entry.get("monitor")
             specs.append(spec)
 
     if not specs:
@@ -323,6 +324,7 @@ def _build_projector_specs(client: obs.ReqClient) -> list:
         )
         specs.append({
             "label": "Program",
+            "monitor": PROGRAM_MONITOR_INDEX,
             "title_substrs": ("Projector", "Program"),
             "open": lambda client: client.open_video_mix_projector(
                 "OBS_WEBSOCKET_VIDEO_MIX_TYPE_PROGRAM", monitor_index=PROGRAM_MONITOR_INDEX
@@ -370,6 +372,64 @@ def _find_projector_hwnd(title_substrs, timeout_sec: float):
     return found["hwnd"]
 
 
+def _projector_windows(title_substrs) -> set:
+    """Every top-level window whose title contains all of title_substrs.
+    Two projectors of the same kind (e.g. two Preview projectors on
+    different monitors) have identical titles, so a projector is tracked
+    by its own window handle, not by its title (see _open_and_track)."""
+    user32 = ctypes.windll.user32
+    EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+    found = set()
+
+    def _callback(hwnd, _lparam):
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length:
+            buf = ctypes.create_unicode_buffer(length + 1)
+            user32.GetWindowTextW(hwnd, buf, length + 1)
+            if all(substr in buf.value for substr in title_substrs):
+                found.add(hwnd)
+        return True
+
+    user32.EnumWindows(EnumWindowsProc(_callback), 0)
+    return found
+
+
+def _monitor_count() -> int:
+    try:
+        return ctypes.windll.user32.GetSystemMetrics(80)  # SM_CMONITORS
+    except Exception:
+        return 0
+
+
+def _open_and_track(client: obs.ReqClient, spec: dict) -> None:
+    """Open the projector, and remember the window it created (the one
+    matching its title that wasn't there before) in spec["hwnd"], so later
+    close/reopen cycles only ever touch this projector's own window. (They
+    used to find it by title, so with two Preview projectors the second
+    one's cycle could close the FIRST one and open the second again,
+    leaving both on the same monitor.)"""
+    if not _IS_WIN:
+        open_projector(client, spec)
+        return
+    before = _projector_windows(spec["title_substrs"])
+    open_projector(client, spec)
+    deadline = time.time() + FIND_WINDOW_TIMEOUT_SEC
+    while time.time() < deadline:
+        new = _projector_windows(spec["title_substrs"]) - before
+        if new:
+            spec["hwnd"] = new.pop()
+            return
+        time.sleep(FIND_WINDOW_POLL_SEC)
+    spec["hwnd"] = None
+    count = _monitor_count()
+    extra = ""
+    if count and spec.get("monitor") is not None and spec["monitor"] >= count:
+        extra = (" Monitor %d doesn't exist right now - Windows only sees %d display(s) "
+                 "(OBS counts from 0). Is a TV off or disconnected?" % (spec["monitor"], count))
+    log.warning("No new %s projector window appeared for monitor %s.%s",
+                spec["label"], spec.get("monitor"), extra)
+
+
 def _close_window(hwnd) -> None:
     WM_CLOSE = 0x0010
     ctypes.windll.user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)
@@ -393,7 +453,9 @@ def _reopen_once(client: obs.ReqClient, spec: dict) -> bool:
     if not _IS_WIN:
         return False
 
-    hwnd = _find_projector_hwnd(spec["title_substrs"], FIND_WINDOW_TIMEOUT_SEC)
+    hwnd = spec.get("hwnd")
+    if hwnd and not ctypes.windll.user32.IsWindow(hwnd):
+        hwnd = None
     if not hwnd:
         log.warning(
             "Could not find the %s projector window (title containing all of "
@@ -417,8 +479,8 @@ def _reopen_once(client: obs.ReqClient, spec: dict) -> bool:
 
     log.info("Closed. Waiting %ss before opening a fresh %s projector...", REOPEN_DELAY_SEC, spec["label"])
     time.sleep(REOPEN_DELAY_SEC)
-    open_projector(client, spec)
-    return True
+    _open_and_track(client, spec)
+    return spec.get("hwnd") is not None
 
 
 def _reopen_if_blank(client: obs.ReqClient, spec: dict) -> None:
@@ -453,8 +515,12 @@ def main() -> None:
     specs = _build_projector_specs(client)
     log.info("Opening %d projector(s): %s", len(specs), ", ".join(s["label"] for s in specs))
 
+    count = _monitor_count()
+    if count:
+        log.info("Windows sees %d display(s) (OBS monitors 0-%d).", count, count - 1)
     for spec in specs:
-        open_projector(client, spec)
+        log.info("%s projector -> monitor %s", spec["label"], spec.get("monitor"))
+        _open_and_track(client, spec)
         _reopen_if_blank(client, spec)
 
     log.info("Done.")
