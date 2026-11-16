@@ -1041,6 +1041,50 @@ def keep_focus(stop_event):
             traceback.print_exc()
             stop_event.wait(10)
 
+def supervise_script(script, stop_event):
+    """Run a helper script (e.g. listen_phidget.py) with no window - so it
+    can't take the keyboard focus - and keep it running: if it stops, log
+    why and restart it, waiting 5s, then longer each time up to 5 min (back
+    to 5s once it has run for 10 min). Its output goes to <script>.log
+    (moved to <script>.log.1 past ~1 MB). Stopped on Ctrl+Shift+S."""
+    import traceback
+    path = os.path.join(_script_dir, script)
+    log_path = os.path.splitext(path)[0] + '.log'
+    delay = 5
+    while not stop_event.is_set():
+        proc = None
+        try:
+            try:
+                if os.path.getsize(log_path) > 1_000_000:
+                    os.replace(log_path, log_path + '.1')
+            except OSError:
+                pass
+            with open(log_path, 'a') as out:
+                flags = 0x08000000 if _IS_WIN else 0  # CREATE_NO_WINDOW
+                proc = subprocess.Popen([sys.executable, '-u', path], cwd=_script_dir,
+                                        stdout=out, stderr=subprocess.STDOUT,
+                                        stdin=subprocess.DEVNULL, creationflags=flags)
+            print(f'Started {script} (its output: {os.path.basename(log_path)}).')
+            started = time.monotonic()
+            while proc.poll() is None:
+                if stop_event.wait(1):
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=3)
+                    except Exception:
+                        proc.kill()
+                    return
+            if time.monotonic() - started > 600:
+                delay = 5
+            print(f'{script} stopped ({describe_exit(proc.returncode)}) - restarting it in '
+                  f'{delay}s. See {os.path.basename(log_path)}.')
+        except Exception:
+            print(f'Could not run {script}:')
+            traceback.print_exc()
+        if stop_event.wait(delay):
+            return
+        delay = min(delay * 2, 300)
+
 def _log_status(watch):
     """Hourly line in guard.log, so a log that goes quiet for hours clearly
     means guard was stuck or stopped, not just that nothing happened."""
@@ -1179,6 +1223,10 @@ def startAllProcess():
     )
     focus_thread = Thread(target=keep_focus, args=(stop_event,), daemon=True) \
         if (_IS_WIN and APP_KEEP_FOCUS and not NO_APP_CONFIGURED) else None
+    # Phidget buttons -> keypresses, only on exhibits with a settings_phidget.py.
+    phidget_thread = Thread(target=supervise_script, args=('listen_phidget.py', stop_event),
+                            daemon=True) \
+        if os.path.isfile(os.path.join(_script_dir, 'settings_phidget.py')) else None
 
     def on_quit():
         # Called from the keyboard hotkey's own listener thread (or from
@@ -1201,6 +1249,9 @@ def startAllProcess():
     if focus_thread:
         print('Keeping the keyboard focus on the app (appKeepFocus).')
         focus_thread.start()
+    if phidget_thread:
+        print('settings_phidget.py found - running listen_phidget.py.')
+        phidget_thread.start()
 
     use_lock_window = _IS_WIN and (NO_APP_CONFIGURED or lock_behind_app)
     if task_thread and not use_lock_window:
@@ -1234,6 +1285,8 @@ def startAllProcess():
         task_thread.join(timeout=5)
     if focus_thread:
         focus_thread.join(timeout=3)
+    if phidget_thread:
+        phidget_thread.join(timeout=5)
     restore_desktop()
     kill_app()
     kill_pulse()

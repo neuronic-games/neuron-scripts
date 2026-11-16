@@ -1,0 +1,43 @@
+# settings_phidget.py.sample
+# Phidget buttons -> keypresses, for exhibits that use a Phidget.
+#
+# Only for exhibits with a Phidget: copy this file to settings_phidget.py
+# (in the scripts folder) and edit it. When settings_phidget.py exists,
+# guard.py runs listen_phidget.py, which presses keys in the app when the
+# Phidget's inputs change. Without the file, nothing Phidget-related runs.
+#
+# Needs, on that PC only:
+#   1. The Phidget22 software for Windows (Phidget22-x64.exe from phidgets.com)
+#   2. py -3 -m pip install phidget22
+#
+# The app gets the keypresses as long as it has the keyboard focus, which
+# guard.py's appKeepFocus (on by default) takes care of.
+
+# One entry per input. Each entry needs a "key"; everything else is
+# optional and narrows down which input it is:
+#
+#   "key"        Key to press, as the keyboard package names it:
+#                "space", "enter", "left", "right", "a", "1", "f5",
+#                "ctrl+r", ...
+#   "mode"       "hold" (default): key held down while the input is on,
+#                released when it turns off - like the button IS the key.
+#                "tap": one press-and-release each time the input turns on.
+#   "channel"    Which digital input on the board, counting from 0.
+#                Leave it out to use the first one found.
+#   "serial"     The board's serial number (shown in the Phidget Control
+#                Panel). Only needed with more than one Phidget board.
+#   "hubPort"    VINT hub port the input is plugged into.
+#   "hubPortDevice": True when the input is a plain button wired straight
+#                into a VINT hub port (the hub port itself is the input).
+#   "invert"     True if the button reads 1 when NOT pressed (normally
+#                closed wiring).
+
+phidgetKeys = [
+    # InterfaceKit 2/2/2 (or any board): first digital input holds SPACE.
+    {"key": "space"},
+
+    # More examples:
+    # {"channel": 0, "key": "left"},
+    # {"channel": 1, "key": "right"},
+    # {"hubPort": 2, "hubPortDevice": True, "key": "enter", "mode": "tap"},
+]

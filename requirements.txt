@@ -13,4 +13,7 @@ msal           # oauth365.py - Office 365 / SharePoint sign-in
 # and fail without Visual Studio's C++ tools. Pin it there only.
 cryptography==46.0.3 ; sys_platform == "win32" and platform_machine == "ARM64"
 requests       # send_to_sharepoint.py
+# phidget22 is NOT installed here - only exhibits with a Phidget need it
+# (listen_phidget.py, see settings_phidget.py.sample):
+#   py -3 -m pip install phidget22
 obsws-python   # OBS scripts (open_projector.py, reset_camera.py, setup_obs.py, ...)

@@ -25,6 +25,7 @@ Scripts that run Neuronic exhibits on Windows kiosk PCs. They launch and watch t
 5. **`pulse.py`**: only if `sheetID` is set. Sends this machine's status to [PulseBoard](#pulseboard-optional) when it starts, when the app comes up, and every 5 hours after that.
 6. **`clean_up_folder.py --loop`**: deletes old files, only if `cleanupFolders` is set.
 7. **`launch_aux.cmd`**: your own extra launch steps, only if that file exists.
+   `guard.py` also runs **`listen_phidget.py`** (Phidget buttons → keypresses) when `settings_phidget.py` exists. See [Phidget buttons](#phidget-buttons-only-for-exhibits-with-a-phidget-windows).
 8. **`guard.py`**: starts the exhibit app full-screen and locks the desktop. It restarts the app if it crashes or stops responding. It also restores the app if it gets minimized, and restarts it if it's still running with no window on screen.
 
 Press **Ctrl+Shift+S** to quit the app and unlock the desktop.
@@ -401,6 +402,24 @@ At each Launch, `start_obs.cmd` restores OBS's settings from the backup in `Docu
 6. Run Launch.
 
 A backup made at any other time keeps the projector list that's already in the backup, so you can back up other OBS changes safely. To see the saved list, run `py -3 obs_projectors.py`.
+
+### Phidget buttons (only for exhibits with a Phidget; Windows)
+
+A Phidget is a small USB board, such as the InterfaceKit 2/2/2, with inputs for physical buttons and sensors. `listen_phidget.py` turns its inputs into keypresses in the app, for example holding **Space** while a big button is pressed. It only runs on exhibits that have a `settings_phidget.py`.
+
+**To set it up:**
+
+1. Install the Phidget22 software for Windows (`Phidget22-x64.exe`) from [phidgets.com](https://www.phidgets.com/docs/OS_-_Windows), then the Python library:
+   ```bat
+   py -3 -m pip install phidget22
+   ```
+2. Copy `settings_phidget.py.sample` to `settings_phidget.py` and edit `phidgetKeys`. Add one entry per input, with the key to press. The sample explains each option.
+   ```python
+   phidgetKeys = [{"key": "space"}]   # first digital input holds Space
+   ```
+3. Run Launch. `guard.py` starts `listen_phidget.py` with no window, so it can't take the keyboard from the app. It restarts the script if it stops, and stops it on Ctrl+Shift+S. You don't need `launch_aux.cmd` for this.
+
+**If a button doesn't work,** look in `listen_phidget.log` in the scripts folder. It logs when the Phidget attaches or is unplugged, and every press. If it keeps saying `Still waiting for the Phidget`, check the USB cable, and close the **Phidget Control Panel**, because only one program can use the board at a time. The app only gets the keys while it has the keyboard focus, which `appKeepFocus` takes care of.
 
 ### Video (`send_video.py`)
 

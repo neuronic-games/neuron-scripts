@@ -4,3 +4,4 @@ settings.py
 /__pycache__
 settings-*.py
 launch_aux.cmd
+settings_phidget.py
