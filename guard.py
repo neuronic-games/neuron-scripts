@@ -181,6 +181,14 @@ APP_READY_TITLE   = str(getattr(settings, 'appReadyWindowTitle', '') or '').stri
 APP_READY_TIMEOUT = int(getattr(settings, 'appReadyTimeout', 180))
 APP_READY_TRIES   = 3
 
+# Windows: keep the keyboard focus on the app. Every second, if any other
+# window has it (OBS, a script's console window, the desktop...), guard
+# gives it back to the app's main window, so keyboard input always reaches
+# the app. Programs in appKeepFocusExcept (Task Manager by default) are
+# left alone. Stop the exhibit with Ctrl+Shift+S to use the PC. False = off.
+APP_KEEP_FOCUS = bool(getattr(settings, 'appKeepFocus', True))
+APP_KEEP_FOCUS_EXCEPT = {n.lower() for n in getattr(settings, 'appKeepFocusExcept', ['Taskmgr.exe'])}
+
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 logging.basicConfig(
     filename=os.path.join(_script_dir, crash_path),
@@ -928,6 +936,111 @@ def _restore_obs_projectors(watch):
     else:
         watch['restoring_obs'] = False
 
+def _process_name(pid):
+    """Image name (e.g. 'obs64.exe') of a process, or '' if it can't be read."""
+    from ctypes import wintypes
+    k32 = windll.kernel32
+    h = k32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return ''
+    try:
+        buf = ctypes.create_unicode_buffer(1024)
+        size = wintypes.DWORD(len(buf))
+        if k32.QueryFullProcessImageNameW(h, 0, buf, byref(size)):
+            return os.path.basename(buf.value)
+        return ''
+    finally:
+        k32.CloseHandle(h)
+
+def _window_class(hwnd):
+    buf = ctypes.create_unicode_buffer(256)
+    windll.user32.GetClassNameW(hwnd, buf, 256)
+    return buf.value
+
+def _main_app_window(pids):
+    """The app's main window: one whose title contains appReadyWindowTitle
+    if that's set, otherwise its largest window on screen. 0 if none."""
+    from ctypes import wintypes
+    shown, _minimized = _app_windows(pids)
+    if not shown:
+        return 0
+    if APP_READY_TITLE:
+        for h in shown:
+            if APP_READY_TITLE.lower() in _window_title(h).lower():
+                return h
+    def area(h):
+        r = wintypes.RECT()
+        windll.user32.GetWindowRect(h, byref(r))
+        return (r.right - r.left) * (r.bottom - r.top)
+    return max(shown, key=area)
+
+def _force_foreground(hwnd):
+    """Give hwnd the keyboard focus. Windows normally refuses this to a
+    background program, so attach to the current foreground window's
+    input for a moment (the standard workaround). Returns True if hwnd
+    ended up in the foreground."""
+    from ctypes import wintypes
+    user32, k32 = windll.user32, windll.kernel32
+    fg = user32.GetForegroundWindow()
+    fg_thread = user32.GetWindowThreadProcessId(fg, None) if fg else 0
+    me = k32.GetCurrentThreadId()
+    attached = bool(fg_thread and fg_thread != me and user32.AttachThreadInput(me, fg_thread, True))
+    try:
+        user32.BringWindowToTop(hwnd)
+        user32.SetForegroundWindow(hwnd)
+        user32.SetFocus(hwnd)
+    finally:
+        if attached:
+            user32.AttachThreadInput(me, fg_thread, False)
+    return user32.GetForegroundWindow() == hwnd
+
+def keep_focus(stop_event):
+    """Windows: every second, give the keyboard focus back to the app if
+    another window has it (APP_KEEP_FOCUS). Logs which program had it, at
+    most every 10 minutes per program, so the log doesn't fill up."""
+    from ctypes import wintypes
+    import traceback
+    user32 = windll.user32
+    user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+    user32.BringWindowToTop.argtypes = [wintypes.HWND]
+    user32.SetFocus.argtypes = [wintypes.HWND]
+    last_logged = {}
+    while not stop_event.wait(1):
+        try:
+            pids = _pids_named(APP_EXE_NAME)
+            if not pids:
+                continue   # app not running - the monitor restarts it
+            fg = user32.GetForegroundWindow()
+            if fg:
+                pid = wintypes.DWORD()
+                user32.GetWindowThreadProcessId(fg, byref(pid))
+                if pid.value in pids:
+                    continue   # the app already has the keyboard
+                thief = _process_name(pid.value)
+                if thief.lower() in APP_KEEP_FOCUS_EXCEPT or _window_class(fg) == 'TaskManagerWindow':
+                    continue   # e.g. Task Manager - leave it alone
+                thief = thief or 'another program'
+            else:
+                thief = 'nothing'
+            target = _main_app_window(pids)
+            if not target:
+                continue   # no app window on screen - the monitor handles that
+            ok = _force_foreground(target)
+            now = time.monotonic()
+            key = (thief, ok)
+            if now - last_logged.get(key, -1e9) >= 600:
+                last_logged[key] = now
+                if ok:
+                    print(f'Keyboard focus was on {thief} - gave it back to the app.')
+                else:
+                    print(f'Keyboard focus is on {thief} - could not give it back to the app.')
+        except Exception:
+            print('Error while keeping the keyboard focus on the app (continuing):')
+            traceback.print_exc()
+            stop_event.wait(10)
+
 def _log_status(watch):
     """Hourly line in guard.log, so a log that goes quiet for hours clearly
     means guard was stuck or stopped, not just that nothing happened."""
@@ -1064,6 +1177,8 @@ def startAllProcess():
     task_thread = None if NO_APP_CONFIGURED else Thread(
         target=getTaskProcess, args=(stop_event,), daemon=True
     )
+    focus_thread = Thread(target=keep_focus, args=(stop_event,), daemon=True) \
+        if (_IS_WIN and APP_KEEP_FOCUS and not NO_APP_CONFIGURED) else None
 
     def on_quit():
         # Called from the keyboard hotkey's own listener thread (or from
@@ -1082,6 +1197,10 @@ def startAllProcess():
     except Exception as e:
         print(f'Hotkey not available ({e}) - use Ctrl+C to quit.')
         _hotkey_ok = False
+
+    if focus_thread:
+        print('Keeping the keyboard focus on the app (appKeepFocus).')
+        focus_thread.start()
 
     use_lock_window = _IS_WIN and (NO_APP_CONFIGURED or lock_behind_app)
     if task_thread and not use_lock_window:
@@ -1113,6 +1232,8 @@ def startAllProcess():
     stop_event.set()
     if task_thread and task_thread.ident is not None:  # may never have started
         task_thread.join(timeout=5)
+    if focus_thread:
+        focus_thread.join(timeout=3)
     restore_desktop()
     kill_app()
     kill_pulse()

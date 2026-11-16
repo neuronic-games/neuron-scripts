@@ -40,6 +40,14 @@ appEXEParam = []
 # window. 0 = off.
 # appWindowTimeout = 60
 
+# Windows only: keep the keyboard focus on the app. Every second, if any
+# other window has it (OBS, a console window, the desktop...), guard.py
+# gives it back to the app's main window. Programs in appKeepFocusExcept
+# (by .exe name) are left alone. Stop the exhibit with Ctrl+Shift+S to use
+# the PC otherwise. On by default.
+# appKeepFocus = True
+# appKeepFocusExcept = ['Taskmgr.exe']
+
 # Windows only: text in the title of the app's main window. If no window
 # with that title appears within appReadyTimeout seconds of the app
 # starting (stuck loading, e.g. OBS's virtual camera didn't start), guard.py
