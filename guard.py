@@ -549,7 +549,8 @@ def show_lock_window(quit_event, behind_app=False, on_ready=None):
                       f'(e.g. "{_window_title(z["hidden"][0])}") - sending it back to the bottom.')
             state['was_behind'] = True
             for desk in z['desktops']:
-                user32.SetWindowPos(desk, 1, 0, 0, 0, 0, SWP_FLAGS)  # HWND_BOTTOM
+                # ASYNCWINDOWPOS: Explorer's window - don't wait for it.
+                user32.SetWindowPos(desk, 1, 0, 0, 0, 0, SWP_FLAGS | 0x4000)  # HWND_BOTTOM
             user32.SetWindowPos(ours[0], z['hidden'][-1], 0, 0, 0, 0, SWP_FLAGS)
         else:
             if z['ours_behind'] and not state['was_behind']:
@@ -704,10 +705,12 @@ def hide_taskbars():
     from ctypes import wintypes
     user32 = windll.user32
     user32.IsWindowVisible.argtypes = [wintypes.HWND]
-    user32.ShowWindow.argtypes = [wintypes.HWND, c_int]
+    user32.ShowWindowAsync.argtypes = [wintypes.HWND, c_int]
     for bar in _taskbars():
         if user32.IsWindowVisible(bar):
-            user32.ShowWindow(bar, 0)  # SW_HIDE
+            # Async: never wait on Explorer - if it's busy, a plain
+            # ShowWindow would freeze guard until it answers.
+            user32.ShowWindowAsync(bar, 0)  # SW_HIDE
 
 def show_taskbars():
     from ctypes import wintypes
@@ -867,6 +870,21 @@ def _check_app_windows(watch):
     now = time.monotonic()
     shown, minimized = _app_windows(watch['pids'])
 
+    # Restore any minimized app window - even if another of its windows is
+    # still showing. The app keeps small helper/loading windows open, so
+    # "some window is showing" doesn't mean its main window is (e.g. after
+    # a "minimize all" from a touch gesture or Win+M). ShowWindowAsync
+    # never waits on the app, so a busy app can't freeze guard.
+    if minimized:
+        if not watch.get('restoring'):
+            print(f'{APP_EXE_NAME}: {len(minimized)} window(s) minimized - restoring them.')
+        watch['restoring'] = True
+        for h in minimized:
+            user32.ShowWindowAsync(h, 9)  # SW_RESTORE
+        user32.SetForegroundWindow(minimized[0])
+    else:
+        watch['restoring'] = False
+
     if shown:
         watch['no_window_since'] = None
         # Hung = not handling input for 5s+ (what Task Manager calls "Not
@@ -885,13 +903,6 @@ def _check_app_windows(watch):
     watch['hung_checks'] = 0
     if watch['no_window_since'] is None:
         watch['no_window_since'] = now
-    if minimized:
-        # Full-screen apps (e.g. Unity) often minimize when they lose
-        # focus - bring the window back.
-        print(f'{APP_EXE_NAME} is minimized - restoring it.')
-        for h in minimized:
-            user32.ShowWindow(h, 9)  # SW_RESTORE
-        user32.SetForegroundWindow(minimized[0])
     if APP_WINDOW_TIMEOUT and now - watch['no_window_since'] >= APP_WINDOW_TIMEOUT:
         print(f'{APP_EXE_NAME} is running but has had no window on screen for '
               f'{APP_WINDOW_TIMEOUT}s - restarting it.')
@@ -899,6 +910,42 @@ def _check_app_windows(watch):
         kill_app()
         return True
     return False
+
+def _restore_obs_projectors(watch):
+    """Windows: restore any minimized OBS projector window (e.g. after a
+    "minimize all"). Nothing else brings them back."""
+    pids = _pids_named('obs64.exe')
+    if not pids:
+        return
+    _shown, minimized = _app_windows(pids)
+    projectors = [h for h in minimized if 'Projector' in _window_title(h)]
+    if projectors:
+        if not watch.get('restoring_obs'):
+            print(f'{len(projectors)} OBS projector(s) minimized - restoring them.')
+        watch['restoring_obs'] = True
+        for h in projectors:
+            windll.user32.ShowWindowAsync(h, 9)  # SW_RESTORE
+    else:
+        watch['restoring_obs'] = False
+
+def _log_status(watch):
+    """Hourly line in guard.log, so a log that goes quiet for hours clearly
+    means guard was stuck or stopped, not just that nothing happened."""
+    parts = []
+    if _IS_WIN:
+        shown, minimized = _app_windows(watch['pids']) if watch['pids'] else ([], [])
+        if not watch['pids']:
+            parts.append('app not running')
+        else:
+            titles = [t for t in (_window_title(h) for h in shown) if t]
+            parts.append('app up' + (f' ("{titles[0]}")' if titles else ' (no titled window)')
+                         + (f', {len(minimized)} minimized' if minimized else ''))
+        if getattr(settings, 'startObs', False):
+            parts.append('OBS running' if _pids_named('obs64.exe') else 'OBS NOT running')
+        parts.append(f'{windll.user32.GetSystemMetrics(80)} display(s)')  # SM_CMONITORS
+    else:
+        parts.append('app running' if getTasks(APP_EXE_NAME) else 'app not running')
+    print('Status: ' + ', '.join(parts) + '.')
 
 def _restart_obs():
     """Run start_obs.cmd (closes the app and OBS, restarts OBS with its
@@ -948,7 +995,7 @@ def getTaskProcess(stop_event):
     unexpected error is logged and monitoring carries on, instead of the
     app silently never being restarted again."""
     import traceback
-    watch = {'pids': set(), 'no_window_since': None, 'hung_checks': 0,
+    watch = {'pids': set(), 'no_window_since': None, 'hung_checks': 0, 'last_status': 0.0,
              'proc': None, 'killed_by_guard': None, 'started': False,
              'started_at': 0.0, 'ready': False, 'stuck_tries': 0}
     while not stop_event.is_set():
@@ -992,6 +1039,11 @@ def getTaskProcess(stop_event):
                 delay = 3  # killed - restart it on the next check
             elif _IS_WIN and _check_app_ready(watch):
                 delay = 3  # stuck loading - killed, restart it on the next check
+            if _IS_WIN and getattr(settings, 'startObs', False):
+                _restore_obs_projectors(watch)
+            if time.monotonic() - watch.get('last_status', 0) >= 3600:
+                watch['last_status'] = time.monotonic()
+                _log_status(watch)
         except Exception:
             print('Error while checking the app (monitoring continues):')
             traceback.print_exc()
