@@ -96,13 +96,13 @@ Put a shortcut in the **Startup** folder (`shell:startup`) so the exhibit starts
 
 The shortcuts run `cmd /c "...\launch.cmd"` rather than `launch.cmd` itself, because Windows only lets you pin a shortcut to the taskbar when it starts a program such as `cmd.exe`.
 
-**Quick way:** paste this whole line into Command Prompt. It creates a **Launch** shortcut, with the Neuronic icon, in both places:
+**Quick way:** double-click `install_shortcuts.cmd` in the scripts folder. It:
 
-```bat
-powershell -NoProfile -Command "$d = Join-Path $env:USERPROFILE 'Documents\Neuronic\neuron-scripts'; $q = [char]34; $w = New-Object -ComObject WScript.Shell; foreach ($f in 'Startup','Desktop') { $s = $w.CreateShortcut((Join-Path ([Environment]::GetFolderPath($f)) 'Launch.lnk')); $s.TargetPath = $env:ComSpec; $s.Arguments = '/c ' + $q + (Join-Path $d 'launch.cmd') + $q; $s.WorkingDirectory = $d; $s.IconLocation = (Join-Path $d 'logo\neuronic.ico'); $s.Save(); Write-Host ('Created ' + $s.FullName) }"
-```
+- creates a **launch** shortcut with the Neuronic icon on the desktop. This works even if the Desktop folder has been moved to OneDrive.
+- asks whether to also start the exhibit automatically when Windows signs in. Answer **Y** to copy the shortcut into the Startup folder (`shell:startup`).
+- warns you if the Startup folder already has another shortcut that runs `launch.cmd`. Delete that one, or Launch runs twice at sign-in.
 
-You should see two `Created ...` lines: one in `...\Start Menu\Programs\Startup` and one on the desktop. This works even if the Desktop folder has been moved to OneDrive.
+Running it again just replaces the shortcuts it made.
 
 **By hand:**
 
@@ -130,7 +130,7 @@ You should see two `Created ...` lines: one in `...\Start Menu\Programs\Startup`
 
 **Test it:** restart the PC. The exhibit should start by itself after Windows signs in.
 
-**Turn off auto-start:** delete the **Launch** shortcut from `shell:startup`. The desktop and taskbar shortcuts can stay.
+**Turn off auto-start:** delete the **launch** shortcut from `shell:startup`. The desktop and taskbar shortcuts can stay.
 
 ---
 
