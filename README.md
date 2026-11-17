@@ -100,6 +100,7 @@ The shortcuts run `cmd /c "...\launch.cmd"` rather than `launch.cmd` itself, bec
 **Quick way:** double-click `install_shortcuts.cmd` in the scripts folder. It:
 
 - creates a **launch** shortcut with the Neuronic icon on the desktop. This works even if the Desktop folder has been moved to OneDrive.
+- creates a **terminal** shortcut on the desktop (icon `logo\terminal.ico`), which opens Command Prompt in the scripts folder.
 - asks whether to also start the exhibit automatically when Windows signs in. Answer **Y** to copy the shortcut into the Startup folder (`shell:startup`).
 - warns you if the Startup folder already has another shortcut that runs `launch.cmd`. Delete that one, or Launch runs twice at sign-in.
 

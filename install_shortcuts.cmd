@@ -2,8 +2,9 @@
 :: Creates a "launch" shortcut on the desktop that starts the exhibit
 :: (cmd.exe /c launch.cmd - a shortcut to cmd.exe, rather than to
 :: launch.cmd itself, can be pinned to the taskbar), with the Neuronic
-:: icon. Then asks whether to also put a copy in the Startup folder, so the
-:: exhibit starts whenever Windows signs in.
+:: icon, and a "terminal" shortcut that opens Command Prompt in the scripts
+:: folder. Then asks whether to also put a copy of "launch" in the Startup
+:: folder, so the exhibit starts whenever Windows signs in.
 :: Safe to run again: it replaces the shortcuts it made before.
 :: No goto/labels in this file: they can misbehave when a .cmd file has
 :: Unix line endings.
@@ -14,6 +15,7 @@ setlocal
 
 set "SCRIPTS=%USERPROFILE%\Documents\Neuronic\neuron-scripts"
 set "ICON=%SCRIPTS%\logo\neuronic.ico"
+set "TERMINAL_ICON=%SCRIPTS%\logo\terminal.ico"
 set "STARTUP=%USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
 
 echo ============================================================
@@ -47,6 +49,19 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+
+:: "terminal": Command Prompt, already in the scripts folder (/k keeps it open).
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$q = [char]34;" ^
+  "$lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'terminal.lnk';" ^
+  "$s = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk);" ^
+  "$s.TargetPath = $env:ComSpec;" ^
+  "$s.Arguments = '/k cd /d ' + $q + $env:SCRIPTS + $q;" ^
+  "$s.WorkingDirectory = $env:SCRIPTS;" ^
+  "$s.IconLocation = $(if (Test-Path -LiteralPath $env:TERMINAL_ICON) { $env:TERMINAL_ICON } else { $env:ComSpec + ',0' });" ^
+  "$s.Save();" ^
+  "Write-Host ('Created ' + $lnk)"
+if errorlevel 1 echo WARNING: Could not create the terminal shortcut.
 
 echo.
 choice /M "Start the exhibit automatically when Windows signs in (copy the shortcut to the Startup folder)"
